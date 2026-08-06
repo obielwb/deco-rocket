@@ -1,6 +1,8 @@
 import { createTool } from "@decocms/runtime/tools";
 import { z } from "zod";
 import { searchMercadoLivre } from "../clients/mercadolivre.ts";
+import { buildRfqDraft } from "../lib/rfq.ts";
+import { newRfqId } from "../lib/rfq-store.ts";
 import type { ProductConcept, Sourcing } from "../lib/types.ts";
 import { ProductConceptSchema, SourcingSchema } from "../lib/types.ts";
 import type { Env } from "../types/env.ts";
@@ -10,32 +12,6 @@ function percentile(nums: number[], p: number): number | null {
 	const s = [...nums].sort((a, b) => a - b);
 	const idx = Math.min(s.length - 1, Math.floor((p / 100) * s.length));
 	return s[idx];
-}
-
-function buildRfq(
-	product: string,
-	specs: string[],
-	costHint: number | null,
-): string {
-	return `Assunto: Solicitação de cotação (RFQ) — ${product}
-
-Olá,
-
-Estamos avaliando incluir o produto abaixo em nosso catálogo e gostaríamos de uma cotação:
-
-Produto: ${product}
-Especificações: ${specs.length ? specs.join("; ") : "a definir"}
-Quantidade inicial (MOQ): 100 unidades (informe seu MOQ mínimo)
-${costHint != null ? `Referência de custo-alvo: ~R$${costHint}/un` : ""}
-
-Por favor, informe:
-- Preço unitário por faixa de quantidade (100 / 500 / 1000)
-- MOQ e prazo de produção
-- Prazo e custo de entrega
-- Condições de pagamento
-
-Obrigado,
-Equipe de Compras`;
 }
 
 /** Reusable step: keyword/concept → supplier cost signal + RFQ draft. */
@@ -78,11 +54,12 @@ export async function sourceSupplier(
 		estimatedUnitCost,
 		suggestedRetailPrice: retail,
 		estimatedMarginPct,
-		rfqDraft: buildRfq(
-			productName,
-			args.concept?.keySpecs ?? [],
-			estimatedUnitCost,
-		),
+		rfqDraft: buildRfqDraft({
+			product: productName,
+			specs: args.concept?.keySpecs ?? [],
+			costHint: estimatedUnitCost,
+			rfqId: newRfqId(),
+		}),
 		note: mlPrices.length
 			? "Custo estimado a partir do piso de preço no Mercado Livre (proxy). Envie o RFQ ao fornecedor para custo real."
 			: prices.length

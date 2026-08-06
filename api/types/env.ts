@@ -49,6 +49,28 @@ export const StateSchema = z.object({
 		.optional()
 		.describe("VTEX environment (default: vtexcommercestable)"),
 
+	// RFQ Agent (supplier quote e-mails via Resend)
+	RESEND_API_KEY: z
+		.string()
+		.optional()
+		.describe("Resend API key for sending RFQ e-mails"),
+	RFQ_FROM_EMAIL: z
+		.string()
+		.optional()
+		.describe("Verified sender e-mail for RFQs (e.g. compras@loja.com)"),
+	RFQ_FROM_NAME: z
+		.string()
+		.optional()
+		.describe("Sender display name (default: Equipe de Compras)"),
+	RFQ_INBOUND_DOMAIN: z
+		.string()
+		.optional()
+		.describe("Inbound domain for reply plus-addressing (e.g. rfq.loja.com)"),
+	RFQ_WEBHOOK_SECRET: z
+		.string()
+		.optional()
+		.describe("Shared secret to authenticate the inbound RFQ webhook"),
+
 	// Localization defaults
 	GEO: z.string().optional().describe("Geo/country code (default: BR)"),
 	LANG: z.string().optional().describe("Language code (default: pt-BR)"),

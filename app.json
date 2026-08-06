@@ -36,6 +36,26 @@
 					"type": "string",
 					"default": "vtexcommercestable"
 				},
+				"RESEND_API_KEY": {
+					"type": "string",
+					"title": "Resend API key (RFQ e-mails)"
+				},
+				"RFQ_FROM_EMAIL": {
+					"type": "string",
+					"title": "RFQ sender e-mail (verified)"
+				},
+				"RFQ_FROM_NAME": {
+					"type": "string",
+					"default": "Equipe de Compras"
+				},
+				"RFQ_INBOUND_DOMAIN": {
+					"type": "string",
+					"title": "Inbound domain for reply correlation"
+				},
+				"RFQ_WEBHOOK_SECRET": {
+					"type": "string",
+					"title": "Inbound webhook shared secret"
+				},
 				"GEO": { "type": "string", "default": "BR" },
 				"LANG": { "type": "string", "default": "pt-BR" }
 			},

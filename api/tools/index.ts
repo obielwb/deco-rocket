@@ -2,6 +2,7 @@ import { catalogGapAnalysis } from "./catalog.ts";
 import { copyGen, productConceptGen } from "./concept.ts";
 import { imageConceptGen } from "./creative.ts";
 import { researchRun } from "./research.ts";
+import { rfqList, rfqParse, rfqSend } from "./rfq.ts";
 import { opportunityScore } from "./score.ts";
 import { supplierSource } from "./sourcing.ts";
 import {
@@ -24,6 +25,10 @@ export const tools = [
 	opportunityScore,
 	productConceptGen,
 	supplierSource,
+	// Pilar 2 — RFQ agent (real supplier connector)
+	rfqSend,
+	rfqParse,
+	rfqList,
 	// Pilar 3 — creative
 	copyGen,
 	imageConceptGen,

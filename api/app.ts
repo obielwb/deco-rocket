@@ -3,6 +3,7 @@ import { prompts } from "./prompts/index.ts";
 import { reportAppResource } from "./resources/report.ts";
 import { tools } from "./tools/index.ts";
 import { type Env, StateSchema } from "./types/env.ts";
+import { handleRfqInbound } from "./webhooks/rfq-inbound.ts";
 
 // biome-ignore lint/suspicious/noExplicitAny: runtime.fetch signature compatibility
 type Fetcher = (req: Request, ...args: any[]) => Response | Promise<Response>;
@@ -73,6 +74,18 @@ function withLogging(fetcher: Fetcher): Fetcher {
 	};
 }
 
+function withWebhooks(fetcher: Fetcher): Fetcher {
+	return (req: Request, ...args) => {
+		const url = new URL(req.url);
+		if (req.method === "POST" && url.pathname === "/webhooks/rfq-inbound") {
+			// args[0] is the platform env on Cloudflare; on Bun getConfig falls back
+			// to process.env, so this is safe on any target.
+			return handleRfqInbound(args[0], req);
+		}
+		return fetcher(req, ...args);
+	};
+}
+
 function withMcpApiRoute(fetcher: Fetcher): Fetcher {
 	return (req: Request, ...args) => {
 		const url = new URL(req.url);
@@ -106,5 +119,5 @@ const runtime = withRuntime<Env, typeof StateSchema>({
 
 /** Platform-agnostic fetch handler. Use this in platform entrypoints. */
 export const app = {
-	fetch: withLogging(withMcpApiRoute(runtime.fetch)),
+	fetch: withLogging(withWebhooks(withMcpApiRoute(runtime.fetch))),
 };

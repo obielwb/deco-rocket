@@ -71,7 +71,10 @@ tests/                # scoring (unit) + pipeline (E2E com degradação real)
 | `CATALOG_GAP_ANALYSIS` | 1 | whitespace contra o catálogo VTEX da loja |
 | `OPPORTUNITY_SCORE` | 2 | score 0-100 com breakdown auditável |
 | `PRODUCT_CONCEPT_GEN` | 2 | conceito concreto de produto (Claude) |
-| `SUPPLIER_SOURCE` | 2 | custo/fornecedor (Mercado Livre + fallback) + RFQ |
+| `SUPPLIER_SOURCE` | 2 | custo/fornecedor (Mercado Livre + fallback) + rascunho de RFQ |
+| `RFQ_SEND` | 2 | envia RFQ ao fornecedor por e-mail (Resend) e rastreia a thread |
+| `RFQ_PARSE` | 2 | extrai cotação estruturada da resposta (Claude + fallback heurístico) |
+| `RFQ_LIST` | 2 | lista threads de RFQ e cotações recebidas |
 | `COPY_GEN` | 3 | título, SEO, PDP e copies de anúncio |
 | `IMAGE_CONCEPT_GEN` | 3 | imagem hero do produto |
 
@@ -113,6 +116,7 @@ prompt `research_product`) — o relatório aparece na UI interativa.
 | Anthropic | `ANTHROPIC_API_KEY` (`ANTHROPIC_MODEL`) | conceito + copy |
 | Imagem | `GEMINI_API_KEY` **ou** `OPENAI_API_KEY` (`IMAGE_PROVIDER`) | imagem hero |
 | VTEX | `VTEX_ACCOUNT` / `VTEX_APP_KEY` / `VTEX_APP_TOKEN` | catálogo / whitespace |
+| Resend | `RESEND_API_KEY` / `RFQ_FROM_EMAIL` (`RFQ_WEBHOOK_SECRET`) | RFQ Agent (envio + inbound) |
 
 ---
 
@@ -129,23 +133,39 @@ mesmo sem nenhuma credencial. Com `SERPAPI_KEY` no ambiente, o teste de integra�
 
 ---
 
-## Conector de fornecedores — estado & propostas
+## Conector de fornecedores — RFQ Agent (implementado)
 
-A Deco **não** tem hoje um conector nativo de _sourcing_. O MVP usa o **Mercado Livre** como sinal de
-custo/oferta (piso de preço → custo estimado) e, quando o endpoint público está gated, **cai para o preço de
-mercado do Google Shopping**; sempre gera um **rascunho de RFQ** pronto para enviar. Caminhos para tornar o
-conector plenamente real (roadmap):
+Fecha o loop "achei o produto → **cotei com fornecedor de verdade**". A Deco não tem conector nativo de
+_sourcing_, então implementamos um **RFQ Agent** próprio:
 
-1. **RFQ Agent** — MCP de e-mail (Gmail/SMTP) que envia o RFQ estruturado e faz _parse_ das respostas. Real e
-   sem depender de API de terceiro.
-2. **VTEX Sellers/Marketplace API** — cotação dos **fornecedores já cadastrados** na loja (seller/SKU/preço).
-3. **1688 / Alibaba API** — sourcing de fornecedor novo com MOQ e custo.
-4. **MCP Mesh Bridge** ([`decocms/bridge`](https://github.com/decocms/bridge)) — opera portais de fornecedor
-   **sem API** (extensão Chrome vira conector do agente): navega e extrai cotação/MOQ.
+1. **`RFQ_SEND`** — compõe um pedido de cotação estruturado (`[RFQ-<id>]` no assunto p/ correlação) e **envia
+   por e-mail via [Resend](https://resend.com)**; rastreia a thread. Use `dryRun:true` para compor sem enviar.
+2. **Webhook de inbound** (`POST /webhooks/rfq-inbound`) — recebe a resposta do fornecedor, casa pelo `[RFQ-<id>]`
+   (ou plus-address `rfq+<id>@…`), extrai a **cotação estruturada** (preço por faixa, MOQ, prazo, pagamento) e
+   anexa à thread. Autenticado por `RFQ_WEBHOOK_SECRET`.
+3. **`RFQ_PARSE` / `RFQ_LIST`** — parse manual de uma resposta colada e listagem das cotações recebidas.
+
+O parse usa **Claude** quando `ANTHROPIC_API_KEY` está setado e **cai para um parser heurístico (regex)** caso
+contrário — então webhook e testes funcionam offline. Custo/margem continuam vindo do Mercado Livre (com
+fallback para Google Shopping) no `SUPPLIER_SOURCE`.
+
+**Setup do Resend:** verifique um domínio no Resend, defina `RFQ_FROM_EMAIL` (remetente verificado) e
+`RESEND_API_KEY`. Para inbound automático, configure o **Resend Inbound** (MX + webhook) apontando para
+`https://<seu-deploy>/webhooks/rfq-inbound?secret=<RFQ_WEBHOOK_SECRET>`. Sem inbound configurado, use `RFQ_PARSE`
+colando a resposta.
+
+> Persistência: as threads ficam num store **em memória** (`api/lib/rfq-store.ts`) — ótimo p/ demo e deploy
+> single-instance. O módulo expõe o _seam_ (`save/get/list/addQuote`) para trocar por Cloudflare KV/D1 ou a Deco DB.
+
+### Outros caminhos de fornecedor (roadmap)
+- **VTEX Sellers/Marketplace API** — cotação dos fornecedores já cadastrados na loja.
+- **1688 / Alibaba API** — sourcing de fornecedor novo com MOQ e custo.
+- **MCP Mesh Bridge** ([`decocms/bridge`](https://github.com/decocms/bridge)) — opera portais de fornecedor
+  **sem API** (extensão Chrome vira conector do agente): navega e extrai cotação/MOQ.
 
 ## Roadmap
 
-- Persistência de runs/relatórios (histórico e comparação temporal).
+- Persistência durável de runs/relatórios/RFQs (Cloudflare KV/D1 ou Deco DB) — histórico e comparação temporal.
 - TikTok Creative Center / Meta Ad Library nativos no `SOCIAL_VIRAL_SCAN`.
 - Deploy Cloudflare Workers (entrypoint `api/main.cloudflare.ts` + `wrangler.toml`).
 - Push automático do produto aprovado para o catálogo VTEX (draft de SKU).

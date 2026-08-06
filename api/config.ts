@@ -34,6 +34,7 @@ export const defaults = {
 	anthropicModel: (c: State) => c.ANTHROPIC_MODEL || "claude-sonnet-5",
 	imageProvider: (c: State) => c.IMAGE_PROVIDER || "gemini",
 	vtexEnv: (c: State) => c.VTEX_ENVIRONMENT || "vtexcommercestable",
+	rfqFromName: (c: State) => c.RFQ_FROM_NAME || "Equipe de Compras",
 };
 
 /** Thrown by clients when a required credential is missing. */

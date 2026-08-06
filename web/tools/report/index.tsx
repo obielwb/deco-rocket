@@ -1,14 +1,17 @@
 import {
 	Boxes,
+	Check,
 	Copy as CopyIcon,
+	Loader2,
 	Mail,
+	Send,
 	Sparkles,
 	Store,
 	TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
-import { useMcpState } from "@/context.tsx";
+import { useMcpApp, useMcpState } from "@/context.tsx";
 import { cn } from "@/lib/utils.ts";
 import type { ProductBrief, Report, ScoreBreakdown } from "./types.ts";
 
@@ -145,16 +148,56 @@ function Pill({
 	);
 }
 
+interface RfqSendResult {
+	rfqId: string;
+	status: "draft" | "sent" | "answered";
+	messageId: string | null;
+	degraded: boolean;
+}
+
 function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 	const { opportunity: o, concept, copy, sourcing } = brief;
+	const app = useMcpApp();
 	const [tab, setTab] = useState<"concept" | "copy" | "sourcing">("concept");
 	const [copied, setCopied] = useState(false);
+	const [supplierEmail, setSupplierEmail] = useState("");
+	const [sending, setSending] = useState(false);
+	const [rfqResult, setRfqResult] = useState<RfqSendResult | null>(null);
+	const [rfqError, setRfqError] = useState<string | null>(null);
+
+	const productName = concept?.name ?? o.keyword;
 
 	const copyRfq = () => {
 		if (sourcing?.rfqDraft) {
 			navigator.clipboard?.writeText(sourcing.rfqDraft);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 1500);
+		}
+	};
+
+	const sendRfq = async () => {
+		if (!app || !supplierEmail) return;
+		setSending(true);
+		setRfqError(null);
+		setRfqResult(null);
+		try {
+			const res = await app.callServerTool({
+				name: "RFQ_SEND",
+				arguments: {
+					supplierEmail,
+					product: productName,
+					keyword: o.keyword,
+					specs: concept?.keySpecs ?? [],
+					costHint: sourcing?.estimatedUnitCost ?? null,
+				},
+			});
+			const out = res.structuredContent as RfqSendResult | undefined;
+			if (out) setRfqResult(out);
+			else setRfqError("Resposta inesperada do servidor.");
+		} catch (e) {
+			setRfqError(e instanceof Error ? e.message : "Falha ao enviar RFQ.");
+		} finally {
+			setSending(false);
 		}
 	};
 
@@ -324,6 +367,51 @@ function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 										</pre>
 									</div>
 								)}
+								<div className="pt-2 border-t border-border/60 space-y-2">
+									<p className="text-xs font-medium">
+										Enviar RFQ ao fornecedor
+									</p>
+									<div className="flex flex-wrap gap-2">
+										<input
+											type="email"
+											value={supplierEmail}
+											onChange={(e) => setSupplierEmail(e.target.value)}
+											placeholder="fornecedor@empresa.com"
+											className="flex-1 min-w-48 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
+										/>
+										<button
+											type="button"
+											onClick={sendRfq}
+											disabled={!supplierEmail || sending}
+											className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50"
+										>
+											{sending ? (
+												<Loader2 className="w-3 h-3 animate-spin" />
+											) : (
+												<Send className="w-3 h-3" />
+											)}
+											Enviar RFQ
+										</button>
+										<a
+											href={`mailto:${supplierEmail}?subject=${encodeURIComponent(`Solicitação de cotação — ${productName}`)}&body=${encodeURIComponent(sourcing.rfqDraft ?? "")}`}
+											className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+										>
+											<Mail className="w-3 h-3" />
+											mailto
+										</a>
+									</div>
+									{rfqResult && (
+										<p className="text-xs inline-flex items-center gap-1.5 text-emerald-600">
+											<Check className="w-3 h-3" />
+											{rfqResult.status === "sent"
+												? `Enviado! (${rfqResult.messageId?.slice(0, 12) ?? "ok"}) — thread ${rfqResult.rfqId}`
+												: `RFQ ${rfqResult.rfqId} composto (${rfqResult.degraded ? "configure RESEND_API_KEY p/ enviar" : "draft"}).`}
+										</p>
+									)}
+									{rfqError && (
+										<p className="text-xs text-destructive">{rfqError}</p>
+									)}
+								</div>
 							</div>
 						) : (
 							<p className="text-muted-foreground">Sem dados de fornecedor.</p>

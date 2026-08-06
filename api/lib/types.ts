@@ -105,6 +105,44 @@ export const SourcingSchema = z.object({
 });
 export type Sourcing = z.infer<typeof SourcingSchema>;
 
+// --- RFQ Agent ---
+
+export const RfqTierSchema = z.object({
+	qty: z.number(),
+	unitPrice: z.number(),
+});
+export type RfqTier = z.infer<typeof RfqTierSchema>;
+
+export const SupplierQuoteSchema = z.object({
+	supplierName: z.string().nullable().default(null),
+	currency: z.string().default("BRL"),
+	tiers: z.array(RfqTierSchema).default([]),
+	moq: z.number().nullable().default(null),
+	leadTimeDays: z.number().nullable().default(null),
+	paymentTerms: z.string().nullable().default(null),
+	shipping: z.string().nullable().default(null),
+	rawNotes: z.string().default(""),
+	parsedAt: z.string(),
+});
+export type SupplierQuote = z.infer<typeof SupplierQuoteSchema>;
+
+export const RfqStatusSchema = z.enum(["draft", "sent", "answered"]);
+
+export const RfqRecordSchema = z.object({
+	rfqId: z.string(),
+	keyword: z.string().nullable().default(null),
+	product: z.string(),
+	supplierEmail: z.string(),
+	supplierName: z.string().nullable().default(null),
+	subject: z.string(),
+	body: z.string(),
+	sentAt: z.string().nullable().default(null),
+	messageId: z.string().nullable().default(null),
+	status: RfqStatusSchema,
+	quotes: z.array(SupplierQuoteSchema).default([]),
+});
+export type RfqRecord = z.infer<typeof RfqRecordSchema>;
+
 export const ProductConceptSchema = z.object({
 	name: z.string(),
 	tagline: z.string(),
