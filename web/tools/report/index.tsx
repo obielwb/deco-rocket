@@ -9,7 +9,7 @@ import {
 	Store,
 	TrendingUp,
 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 import { useMcpApp, useMcpState } from "@/context.tsx";
 import { cn } from "@/lib/utils.ts";
@@ -20,9 +20,28 @@ const BRL = (n: number | null | undefined) =>
 		? "—"
 		: `R$ ${n.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
 
+/** Friendly labels for internal data-source keys surfaced in the report. */
+const SOURCE_LABELS: Record<string, string> = {
+	google_trends: "Google Trends",
+	dataforseo: "volume de busca",
+	serpapi_shopping: "Google Shopping",
+	vtex: "catálogo VTEX",
+	anthropic: "geração por IA",
+	image: "geração de imagem",
+};
+const sourceLabel = (k: string) => SOURCE_LABELS[k] ?? k;
+
+/** Vivid ring stroke (non-text graphic). */
 function scoreColor(score: number): string {
 	if (score >= 70) return "text-emerald-500";
 	if (score >= 50) return "text-amber-500";
+	return "text-muted-foreground";
+}
+
+/** Score/label text — AA-contrast in light and dark. */
+function scoreText(score: number): string {
+	if (score >= 70) return "text-emerald-700 dark:text-emerald-400";
+	if (score >= 50) return "text-amber-700 dark:text-amber-400";
 	return "text-muted-foreground";
 }
 
@@ -51,7 +70,10 @@ function ScoreRing({ score }: { score: number }) {
 					cx="32"
 					cy="32"
 					r={r}
-					className={cn("transition-all", scoreColor(score))}
+					className={cn(
+						"transition-[stroke-dashoffset] duration-500 ease-out",
+						scoreColor(score),
+					)}
 					stroke="currentColor"
 					strokeWidth="6"
 					fill="none"
@@ -61,7 +83,9 @@ function ScoreRing({ score }: { score: number }) {
 				/>
 			</svg>
 			<div className="absolute inset-0 flex items-center justify-center">
-				<span className={cn("text-lg font-bold", scoreColor(score))}>
+				<span
+					className={cn("text-lg font-bold tabular-nums", scoreText(score))}
+				>
 					{score}
 				</span>
 			</div>
@@ -84,14 +108,14 @@ function BreakdownBars({ b }: { b: ScoreBreakdown }) {
 				<div key={k} className="flex flex-col items-center gap-1">
 					<div className="w-full h-16 bg-muted rounded flex items-end overflow-hidden">
 						<div
-							className="w-full bg-primary/70 rounded-t transition-all"
+							className="w-full bg-primary/70 rounded-t transition-[height] duration-500 ease-out"
 							style={{ height: `${b[k]}%` }}
 						/>
 					</div>
 					<span className="text-[10px] text-muted-foreground text-center leading-tight">
 						{BREAKDOWN_LABELS[k]}
 					</span>
-					<span className="text-xs font-medium">{b[k]}</span>
+					<span className="text-xs font-medium tabular-nums">{b[k]}</span>
 				</div>
 			))}
 		</div>
@@ -138,8 +162,9 @@ function Pill({
 		<span
 			className={cn(
 				"inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-				tone === "good" && "bg-emerald-500/15 text-emerald-600",
-				tone === "warn" && "bg-amber-500/15 text-amber-600",
+				tone === "good" &&
+					"bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+				tone === "warn" && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
 				tone === "default" && "bg-muted text-muted-foreground",
 			)}
 		>
@@ -158,6 +183,7 @@ interface RfqSendResult {
 function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 	const { opportunity: o, concept, copy, sourcing } = brief;
 	const app = useMcpApp();
+	const emailId = useId();
 	const [tab, setTab] = useState<"concept" | "copy" | "sourcing">("concept");
 	const [copied, setCopied] = useState(false);
 	const [supplierEmail, setSupplierEmail] = useState("");
@@ -246,8 +272,8 @@ function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 					// biome-ignore lint/a11y/useAltText: generated concept image
 					<img
 						src={brief.imageUrl}
-						alt={concept?.name ?? o.keyword}
-						className="w-28 h-28 rounded-lg object-cover border border-border shrink-0"
+						alt={`Conceito visual de ${concept?.name ?? o.keyword}`}
+						className="w-28 h-28 rounded-lg object-cover shrink-0 outline outline-1 -outline-offset-1 outline-black/10 dark:outline-white/10"
 					/>
 				)}
 			</div>
@@ -267,7 +293,7 @@ function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 							key={t}
 							onClick={() => setTab(t)}
 							className={cn(
-								"px-3 py-1.5 text-sm rounded-t-md",
+								"px-3 py-1.5 text-sm rounded-t-md transition-colors",
 								tab === t
 									? "bg-muted font-medium"
 									: "text-muted-foreground hover:text-foreground",
@@ -303,7 +329,7 @@ function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 							</div>
 						) : (
 							<p className="text-muted-foreground">
-								Conceito não gerado (configure ANTHROPIC_API_KEY).
+								Conceito não gerado — configure a geração por IA.
 							</p>
 						))}
 					{tab === "copy" &&
@@ -313,7 +339,9 @@ function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 								<p className="text-xs text-muted-foreground">
 									SEO: {copy.seoTitle} — {copy.metaDescription}
 								</p>
-								<p className="whitespace-pre-wrap">{copy.pdpDescription}</p>
+								<p className="whitespace-pre-wrap text-pretty max-w-prose">
+									{copy.pdpDescription}
+								</p>
 								<div className="space-y-1">
 									{copy.adCopies.map((a) => (
 										<p
@@ -333,13 +361,22 @@ function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 							<div className="space-y-2">
 								<div className="flex flex-wrap gap-3 text-sm">
 									<span>
-										Custo estimado: <b>{BRL(sourcing.estimatedUnitCost)}</b>
+										Custo estimado:{" "}
+										<b className="tabular-nums">
+											{BRL(sourcing.estimatedUnitCost)}
+										</b>
 									</span>
 									<span>
-										Preço sugerido: <b>{BRL(sourcing.suggestedRetailPrice)}</b>
+										Preço sugerido:{" "}
+										<b className="tabular-nums">
+											{BRL(sourcing.suggestedRetailPrice)}
+										</b>
 									</span>
 									<span>
-										Margem: <b>{sourcing.estimatedMarginPct ?? "—"}%</b>
+										Margem:{" "}
+										<b className="tabular-nums">
+											{sourcing.estimatedMarginPct ?? "—"}%
+										</b>
 									</span>
 								</div>
 								{sourcing.offers.length > 0 && (
@@ -353,7 +390,7 @@ function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 										<button
 											type="button"
 											onClick={copyRfq}
-											className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:opacity-90"
+											className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium transition hover:opacity-90 active:scale-[0.96]"
 										>
 											{copied ? (
 												<CopyIcon className="w-3 h-3" />
@@ -368,22 +405,23 @@ function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 									</div>
 								)}
 								<div className="pt-2 border-t border-border/60 space-y-2">
-									<p className="text-xs font-medium">
-										Enviar RFQ ao fornecedor
-									</p>
+									<label htmlFor={emailId} className="text-xs font-medium">
+										E-mail do fornecedor
+									</label>
 									<div className="flex flex-wrap gap-2">
 										<input
+											id={emailId}
 											type="email"
 											value={supplierEmail}
 											onChange={(e) => setSupplierEmail(e.target.value)}
 											placeholder="fornecedor@empresa.com"
-											className="flex-1 min-w-48 rounded-md border border-border bg-background px-2.5 py-1.5 text-sm"
+											className="flex-1 min-w-48 rounded-md border border-border bg-background px-2.5 py-1.5 text-base sm:text-sm"
 										/>
 										<button
 											type="button"
 											onClick={sendRfq}
 											disabled={!supplierEmail || sending}
-											className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50"
+											className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium transition hover:opacity-90 active:scale-[0.96] disabled:opacity-50 disabled:active:scale-100"
 										>
 											{sending ? (
 												<Loader2 className="w-3 h-3 animate-spin" />
@@ -394,22 +432,29 @@ function BriefCard({ brief, rank }: { brief: ProductBrief; rank: number }) {
 										</button>
 										<a
 											href={`mailto:${supplierEmail}?subject=${encodeURIComponent(`Solicitação de cotação — ${productName}`)}&body=${encodeURIComponent(sourcing.rfqDraft ?? "")}`}
-											className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+											className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium transition hover:bg-muted active:scale-[0.96]"
 										>
 											<Mail className="w-3 h-3" />
-											mailto
+											Abrir no e-mail
 										</a>
 									</div>
 									{rfqResult && (
-										<p className="text-xs inline-flex items-center gap-1.5 text-emerald-600">
-											<Check className="w-3 h-3" />
+										<p
+											role="status"
+											className="text-xs inline-flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400"
+										>
+											<Check className="w-3 h-3" aria-hidden="true" />
 											{rfqResult.status === "sent"
-												? `Enviado! (${rfqResult.messageId?.slice(0, 12) ?? "ok"}) — thread ${rfqResult.rfqId}`
-												: `RFQ ${rfqResult.rfqId} composto (${rfqResult.degraded ? "configure RESEND_API_KEY p/ enviar" : "draft"}).`}
+												? `RFQ enviado ao fornecedor · ref. ${rfqResult.rfqId}`
+												: rfqResult.degraded
+													? `RFQ pronto (ref. ${rfqResult.rfqId}). Configure o envio de e-mail para disparar.`
+													: `RFQ composto · ref. ${rfqResult.rfqId}`}
 										</p>
 									)}
 									{rfqError && (
-										<p className="text-xs text-destructive">{rfqError}</p>
+										<p role="alert" className="text-xs text-destructive">
+											{rfqError}
+										</p>
 									)}
 								</div>
 							</div>
@@ -475,14 +520,15 @@ export default function ReportPage() {
 					</span>
 				</div>
 				{report.summary && (
-					<p className="text-sm bg-muted/50 border border-border rounded-lg p-3">
+					<p className="text-sm text-pretty bg-muted/50 border border-border rounded-lg p-3">
 						{report.summary}
 					</p>
 				)}
 				{report.degraded.length > 0 && (
-					<p className="text-xs text-amber-600">
-						Fontes indisponíveis nesta execução: {report.degraded.join(", ")}{" "}
-						(configure as credenciais para dados completos).
+					<p className="text-xs text-amber-700 dark:text-amber-400">
+						Fontes indisponíveis nesta execução:{" "}
+						{report.degraded.map(sourceLabel).join(", ")} (configure as
+						credenciais para dados completos).
 					</p>
 				)}
 			</header>
