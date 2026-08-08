@@ -51,7 +51,7 @@ export function buildSourcePreviews(
 			.slice(0, 3);
 		previews.push({
 			source: "social_viral",
-			label: "TikTok Shop radar",
+			label: "TikTok Shop radar (estimado)",
 			provider: "Preview social",
 			status: trend ? "estimated" : "unavailable",
 			summary: trend

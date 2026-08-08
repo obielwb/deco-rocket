@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import {
@@ -10,6 +10,8 @@ import { buildSourcePreviews } from "./lib/source-previews.ts";
 import type { Report, ResearchSource } from "./lib/types.ts";
 import { CreativeTypeSchema, ResearchSourceSchema } from "./lib/types.ts";
 import {
+	deleteLaunchedProduct,
+	deleteLaunchedProductsByReport,
 	LaunchProductRequestSchema,
 	launchProduct,
 	listLaunchedProducts,
@@ -57,6 +59,7 @@ export interface StoredReport {
 }
 
 const distDir = join(import.meta.dir, "../dist");
+const legacyReportFile = join(distDir, "report.json");
 const reportsDir = join(distDir, "reports");
 const reports = new Map<string, StoredReport>();
 let loaded = false;
@@ -93,7 +96,7 @@ async function loadReports(): Promise<void> {
 
 	try {
 		const legacy = JSON.parse(
-			await readFile(join(distDir, "report.json"), "utf8"),
+			await readFile(legacyReportFile, "utf8"),
 		) as Report;
 		const id = makeId(legacy);
 		const normalized = await normalizeStoredReport({
@@ -130,6 +133,12 @@ async function persist(stored: StoredReport): Promise<void> {
 	await writeFile(
 		join(reportsDir, `${stored.id}.json`),
 		JSON.stringify(stored, null, 2),
+	);
+}
+
+function sortedReports(): StoredReport[] {
+	return [...reports.values()].sort((a, b) =>
+		b.report.generatedAt.localeCompare(a.report.generatedAt),
 	);
 }
 
@@ -182,6 +191,27 @@ async function refreshStoredReports(): Promise<number> {
 		}
 	}
 	return updated;
+}
+
+async function deleteStoredReport(reportId: string): Promise<{
+	deletedProducts: number;
+	report: StoredReport | null;
+}> {
+	const stored = reports.get(reportId) ?? null;
+	if (!stored) return { deletedProducts: 0, report: null };
+
+	reports.delete(reportId);
+	await rm(join(reportsDir, `${reportId}.json`), { force: true });
+
+	try {
+		const legacy = JSON.parse(await readFile(legacyReportFile, "utf8")) as Report;
+		if (makeId(legacy) === reportId) await rm(legacyReportFile, { force: true });
+	} catch {
+		// No legacy file to remove.
+	}
+
+	const deletedProducts = await deleteLaunchedProductsByReport(reportId);
+	return { deletedProducts, report: stored };
 }
 
 function localEnv(): Env {
@@ -313,9 +343,7 @@ export async function handleResearchApi(
 
 	if (request.method === "GET" && url.pathname === "/api/research/reports") {
 		return json({
-			reports: [...reports.values()].sort((a, b) =>
-				b.report.generatedAt.localeCompare(a.report.generatedAt),
-			),
+			reports: sortedReports(),
 		});
 	}
 
@@ -326,9 +354,28 @@ export async function handleResearchApi(
 		const updated = await refreshStoredReports();
 		return json({
 			updated,
-			reports: [...reports.values()].sort((a, b) =>
-				b.report.generatedAt.localeCompare(a.report.generatedAt),
-			),
+			reports: sortedReports(),
+		});
+	}
+
+	if (
+		request.method === "DELETE" &&
+		url.pathname.startsWith("/api/research/reports/") &&
+		url.pathname !== "/api/research/reports/refresh"
+	) {
+		const reportId = decodeURIComponent(url.pathname.split("/").pop() ?? "");
+		if (!reportId) return json({ error: "Report inválido." }, 400);
+
+		const deleted = await deleteStoredReport(reportId);
+		if (!deleted.report) {
+			return json({ error: "Report não encontrado." }, 404);
+		}
+
+		return json({
+			ok: true,
+			reportId,
+			deletedProducts: deleted.deletedProducts,
+			reports: sortedReports(),
 		});
 	}
 
@@ -357,6 +404,23 @@ export async function handleResearchApi(
 			);
 		}
 		return json(await launchProduct(parsed.data), 201);
+	}
+
+	if (
+		request.method === "DELETE" &&
+		url.pathname.startsWith("/api/research/launches/")
+	) {
+		const productId = decodeURIComponent(url.pathname.split("/").pop() ?? "");
+		if (!productId) return json({ error: "Produto inválido." }, 400);
+
+		const deleted = await deleteLaunchedProduct(productId);
+		if (!deleted) return json({ error: "Produto não encontrado." }, 404);
+
+		return json({
+			ok: true,
+			productId,
+			products: await listLaunchedProducts(),
+		});
 	}
 
 	if (request.method === "POST" && url.pathname === "/api/research/run") {

@@ -78,6 +78,27 @@ export async function listLaunchedProducts(): Promise<LaunchedProduct[]> {
 	);
 }
 
+export async function deleteLaunchedProduct(productId: string): Promise<boolean> {
+	await load();
+	const deleted = products.delete(productId);
+	if (deleted) await persist();
+	return deleted;
+}
+
+export async function deleteLaunchedProductsByReport(
+	reportId: string,
+): Promise<number> {
+	await load();
+	let deleted = 0;
+	for (const [productId, product] of products.entries()) {
+		if (product.reportId !== reportId) continue;
+		products.delete(productId);
+		deleted += 1;
+	}
+	if (deleted > 0) await persist();
+	return deleted;
+}
+
 export async function launchProduct(
 	input: LaunchProductRequest,
 ): Promise<LaunchedProduct> {
