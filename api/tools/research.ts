@@ -5,21 +5,37 @@ import { keywordVolume } from "../clients/dataforseo.ts";
 import { googleShopping, googleTrends } from "../clients/serpapi.ts";
 import { searchCatalog, storeName } from "../clients/vtex.ts";
 import { rankOpportunities, scoreOpportunity } from "../lib/scoring.ts";
+import { buildSourcePreviews } from "../lib/source-previews.ts";
 import type {
 	CatalogGap,
+	CreativeType,
 	KeywordVolume,
 	MarketSnapshot,
 	ProductBrief,
 	Report,
+	ResearchSource,
 	TrendSignal,
 } from "../lib/types.ts";
-import { ReportSchema } from "../lib/types.ts";
+import {
+	CreativeTypeSchema,
+	ReportSchema,
+	ResearchSourceSchema,
+} from "../lib/types.ts";
 import type { Env } from "../types/env.ts";
 import { generateConcept, generateCopy } from "./concept.ts";
-import { generateConceptImage } from "./creative.ts";
+import { buildCreativePrompt, generateConceptImage } from "./creative.ts";
 import { sourceSupplier } from "./sourcing.ts";
 
 export const REPORT_RESOURCE_URI = "ui://deco-research/report";
+
+const DEFAULT_SOURCES: ResearchSource[] = [
+	"google_trends",
+	"google_shopping",
+	"keyword_volume",
+	"social_viral",
+	"catalog",
+];
+const DEFAULT_CREATIVES: CreativeType[] = ["product_hero"];
 
 /** Expand seed terms with breakout related queries from Google Trends. */
 async function expandCandidates(
@@ -64,6 +80,23 @@ export const researchRun = (env: Env) =>
 				.max(10)
 				.optional()
 				.describe("Concepts to fully develop. Default 3"),
+			profile: z
+				.string()
+				.optional()
+				.describe("Research profile, e.g. teen/social media"),
+			audience: z.string().optional().describe("Target audience constraints"),
+			sources: z.array(ResearchSourceSchema).min(1).optional(),
+			collections: z.array(z.string()).optional(),
+			creativeTypes: z.array(CreativeTypeSchema).min(1).max(3).optional(),
+			storeStyle: z
+				.string()
+				.optional()
+				.describe("Store visual language for generated creatives"),
+			referenceImages: z
+				.array(z.string().url())
+				.max(3)
+				.optional()
+				.describe("Store images used only as visual style references"),
 		}),
 		outputSchema: ReportSchema,
 		_meta: { ui: { resourceUri: REPORT_RESOURCE_URI } },
@@ -79,18 +112,29 @@ export const researchRun = (env: Env) =>
 			const maxCandidates = context.maxCandidates ?? 8;
 			const topN = context.topN ?? 3;
 			const store = storeName(env);
+			const sources = context.sources ?? DEFAULT_SOURCES;
+			const enabled = new Set<ResearchSource>(sources);
+			const creativeTypes = context.creativeTypes ?? DEFAULT_CREATIVES;
+			const collections = context.collections ?? [];
+			const usesTrendSignals =
+				enabled.has("google_trends") || enabled.has("social_viral");
 
 			// 1. Expand candidates from seeds + breakout queries.
-			const { candidates, seedTrends } = await expandCandidates(
-				env,
-				seeds,
-				maxCandidates,
-			);
-			if (seedTrends.size === 0) degraded.add("google_trends");
+			const { candidates, seedTrends } = usesTrendSignals
+				? await expandCandidates(env, seeds, maxCandidates)
+				: {
+						candidates: seeds.slice(0, maxCandidates),
+						seedTrends: new Map<string, TrendSignal>(),
+					};
+			if (usesTrendSignals && seedTrends.size === 0)
+				degraded.add("google_trends");
 
 			// 2. Gather signals (trend + market per candidate, volume in one batch).
-			const volumesArr = await keywordVolume(env, candidates).catch(() => null);
-			if (!volumesArr) degraded.add("dataforseo");
+			const volumesArr = enabled.has("keyword_volume")
+				? await keywordVolume(env, candidates).catch(() => null)
+				: [];
+			if (enabled.has("keyword_volume") && !volumesArr)
+				degraded.add("dataforseo");
 			const volumes = new Map<string, KeywordVolume>(
 				(volumesArr ?? []).map((v) => [v.keyword, v]),
 			);
@@ -98,22 +142,52 @@ export const researchRun = (env: Env) =>
 			const perCandidate = await Promise.all(
 				candidates.map(async (keyword) => {
 					const [trend, market, catalog] = await Promise.all([
-						seedTrends.get(keyword)
-							? Promise.resolve(seedTrends.get(keyword) ?? null)
-							: googleTrends(env, keyword).catch(() => null),
-						googleShopping(env, keyword).catch(() => null),
-						searchCatalog(env, keyword).catch(() => null),
+						!usesTrendSignals
+							? Promise.resolve(null)
+							: seedTrends.get(keyword)
+								? Promise.resolve(seedTrends.get(keyword) ?? null)
+								: googleTrends(env, keyword).catch(() => null),
+						enabled.has("google_shopping")
+							? googleShopping(env, keyword).catch(() => null)
+							: Promise.resolve(null),
+						enabled.has("catalog")
+							? searchCatalog(env, keyword).catch(() => null)
+							: Promise.resolve(null),
 					]);
-					if (!market) degraded.add("serpapi_shopping");
-					if (catalog === null) degraded.add("vtex");
-					const gap: CatalogGap | null = catalog
-						? {
-								keyword,
-								inCatalog: catalog.count > 0,
-								catalogMatches: catalog.count,
-								sampleMatch: catalog.sample,
-							}
-						: null;
+					if (enabled.has("google_shopping") && !market)
+						degraded.add("serpapi_shopping");
+					if (
+						enabled.has("catalog") &&
+						catalog === null &&
+						collections.length === 0
+					) {
+						degraded.add("catalog");
+					}
+					const collectionMatch = collections.find((collection) => {
+						const normalizedKeyword = keyword.toLocaleLowerCase("pt-BR");
+						const normalizedCollection = collection.toLocaleLowerCase("pt-BR");
+						return (
+							normalizedKeyword.includes(normalizedCollection) ||
+							normalizedCollection.includes(normalizedKeyword)
+						);
+					});
+					const gap: CatalogGap | null = !enabled.has("catalog")
+						? null
+						: catalog
+							? {
+									keyword,
+									inCatalog: catalog.count > 0,
+									catalogMatches: catalog.count,
+									sampleMatch: catalog.sample,
+								}
+							: collections.length > 0
+								? {
+										keyword,
+										inCatalog: Boolean(collectionMatch),
+										catalogMatches: collectionMatch ? 1 : 0,
+										sampleMatch: collectionMatch,
+									}
+								: null;
 					return {
 						keyword,
 						trend: (trend as TrendSignal | null) ?? null,
@@ -135,12 +209,16 @@ export const researchRun = (env: Env) =>
 				top.map(async (opportunity): Promise<ProductBrief> => {
 					let concept = null;
 					try {
-						concept = await generateConcept(env, opportunity, store);
+						concept = await generateConcept(env, opportunity, store, {
+							profile: context.profile,
+							audience: context.audience,
+							collections,
+						});
 					} catch {
-						degraded.add("anthropic");
+						degraded.add("llm");
 					}
 
-					const [copy, sourcing, image] = await Promise.all([
+					const [copy, sourcing, creatives] = await Promise.all([
 						concept
 							? generateCopy(env, concept, opportunity.keyword).catch(
 									() => null,
@@ -155,21 +233,47 @@ export const researchRun = (env: Env) =>
 								.filter((p): p is number => p != null),
 						}).catch(() => null),
 						concept
-							? generateConceptImage(env, concept).catch(() => ({
-									imageUrl: null,
-									prompt: "",
-								}))
-							: Promise.resolve({ imageUrl: null, prompt: "" }),
+							? Promise.all(
+									creativeTypes.map(async (type) => {
+										const prompt = buildCreativePrompt(
+											concept,
+											type,
+											context.storeStyle,
+										);
+										const image = await generateConceptImage(
+											env,
+											concept,
+											prompt,
+											{
+												creativeType: type,
+												referenceImages: context.referenceImages,
+											},
+										).catch(() => ({
+											imageUrl: null,
+											prompt,
+										}));
+										return {
+											type,
+											imageUrl: image.imageUrl,
+											prompt: image.prompt,
+										};
+									}),
+								)
+							: Promise.resolve([]),
 					]);
-					if (concept && !image.imageUrl) degraded.add("image");
+					if (concept && creatives.some((creative) => !creative.imageUrl))
+						degraded.add("image");
+					const primaryCreative = creatives[0];
 
 					return {
 						opportunity,
 						concept,
 						copy,
 						sourcing,
-						imageUrl: image.imageUrl,
-						imagePrompt: image.prompt || null,
+						imageUrl: primaryCreative?.imageUrl ?? null,
+						imagePrompt: primaryCreative?.prompt ?? null,
+						creatives,
+						sourcePreviews: buildSourcePreviews(opportunity, sources),
 					};
 				}),
 			);
@@ -190,6 +294,15 @@ export const researchRun = (env: Env) =>
 				summary,
 				briefs,
 				degraded: [...degraded],
+				config: {
+					profile: context.profile ?? null,
+					audience: context.audience ?? null,
+					sources,
+					collections,
+					creativeTypes,
+					storeStyle: context.storeStyle ?? null,
+					referenceImages: context.referenceImages ?? [],
+				},
 			};
 		},
 	});

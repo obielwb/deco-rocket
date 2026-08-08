@@ -1,0 +1,34 @@
+import type { Product } from "@decocms/apps-commerce/types";
+import { clx } from "~/sdk/clx";
+import ProductCard from "../product/card/ProductCard";
+
+export interface Props {
+  products: Product[];
+  /** Index offset of the first product in the slice (used for analytics) */
+  offset?: number;
+  /** Router preload strategy passed to each card's product link. */
+  prefetch?: "intent" | false;
+}
+
+export default function SearchResultGrid({ products, offset = 0, prefetch = "intent" }: Props) {
+  return (
+    <div
+      data-product-list
+      className={clx(
+        "grid w-full",
+        "grid-cols-2 gap-3",
+        "sm:grid-cols-3",
+      )}
+    >
+      {products.map((product, index) => (
+        <ProductCard
+          key={`product-card-${product.productID}`}
+          product={product}
+          preload={index === 0}
+          prefetch={prefetch}
+          index={offset + index}
+        />
+      ))}
+    </div>
+  );
+}

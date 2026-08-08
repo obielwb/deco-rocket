@@ -39,6 +39,14 @@ export const StateSchema = z.object({
 		.optional()
 		.describe("Google Gemini API key (nano-banana image)"),
 	OPENAI_API_KEY: z.string().optional().describe("OpenAI API key (gpt-image)"),
+	OPENAI_IMAGE_MODEL: z
+		.string()
+		.optional()
+		.describe("OpenAI image model (default: gpt-image-2)"),
+	OPENAI_TEXT_MODEL: z
+		.string()
+		.optional()
+		.describe("OpenAI text fallback model (default: gpt-4.1-mini)"),
 
 	// Store catalog (VTEX)
 	VTEX_ACCOUNT: z.string().optional().describe("VTEX account name"),

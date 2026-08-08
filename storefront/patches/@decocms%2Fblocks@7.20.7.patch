@@ -1,0 +1,88 @@
+diff --git a/node_modules/@decocms/blocks/.bun-tag-18da87f222cee1cd b/.bun-tag-18da87f222cee1cd
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/src/hooks/Image.tsx b/src/hooks/Image.tsx
+index 8023fdb5f0822be532f7c4f0f28260017eaebbc6..2e9391fab68d7e9783a5da97ffc0ef6f66e55b94 100644
+--- a/src/hooks/Image.tsx
++++ b/src/hooks/Image.tsx
+@@ -39,11 +39,19 @@ export type FitOptions = "contain" | "cover" | "fill";
+ 
+ export const FACTORS = [1, 2];
+ 
++// The CDN quantizes PNG output to a 4-bit (16 color) palette by default,
++// causing visible banding/posterization on photos with gradients or skin
++// tones. Numeric `quality` values (1-100) have no effect on this behavior —
++// only the literal value "original" disables the quantization and returns
++// full color-depth output. Use that as the default instead of the lossy one.
++const DEFAULT_QUALITY = "original";
++
+ interface OptimizationOptions {
+ 	originalSrc: string;
+ 	width: number;
+ 	height?: number;
+ 	fit: FitOptions;
++	quality?: number | "original";
+ }
+ 
+ // -------------------------------------------------------------------------
+@@ -86,7 +94,7 @@ function optimizeShopify(originalSrc: string, width: number, height?: number): s
+  * Data URIs are returned as-is.
+  */
+ export function getOptimizedMediaUrl(opts: OptimizationOptions): string {
+-	const { originalSrc, width, height, fit } = opts;
++	const { originalSrc, width, height, fit, quality = DEFAULT_QUALITY } = opts;
+ 
+ 	// Defensive: an upstream CMS payload occasionally has missing/null image
+ 	// fields. Crashing the entire React tree on `undefined.startsWith` would
+@@ -126,6 +134,7 @@ export function getOptimizedMediaUrl(opts: OptimizationOptions): string {
+ 	params.set("fit", fit);
+ 	params.set("width", `${width}`);
+ 	if (height) params.set("height", `${height}`);
++	params.set("quality", `${quality}`);
+ 
+ 	return `https://${imageCdnDomain}/image?${params}&src=${imageSource}`;
+ }
+@@ -139,6 +148,7 @@ export function getSrcSet(
+ 	height?: number,
+ 	fit?: FitOptions,
+ 	factors: number[] = FACTORS,
++	quality?: number | "original",
+ ): string | undefined {
+ 	if (typeof originalSrc !== "string" || originalSrc.length === 0) {
+ 		return undefined;
+@@ -155,6 +165,7 @@ export function getSrcSet(
+ 			width: w,
+ 			height: h,
+ 			fit: fit ?? "cover",
++			quality,
+ 		});
+ 
+ 		if (src) {
+@@ -178,6 +189,8 @@ export interface ImageProps
+ 	height?: number;
+ 	/** @description Object-fit */
+ 	fit?: FitOptions;
++	/** @description Compression quality (1-100), or "original" for full color depth. Defaults to "original". */
++	quality?: number | "original";
+ 	/**
+ 	 * @description Web Vitals (LCP). Injects a `<link rel="preload">` tag
+ 	 * alongside the `<img>`, sets `fetchPriority="high"` and `loading="eager"`.
+@@ -194,6 +207,7 @@ export const Image = forwardRef<HTMLImageElement, ImageProps>(function Image(
+ 		width,
+ 		height,
+ 		fit = "cover",
++		quality,
+ 		preload,
+ 		media,
+ 		loading,
+@@ -214,8 +228,9 @@ export const Image = forwardRef<HTMLImageElement, ImageProps>(function Image(
+ 		width,
+ 		height,
+ 		fit,
++		quality,
+ 	});
+-	const srcSet = srcSetProp ?? getSrcSet(src, width, height, fit);
++	const srcSet = srcSetProp ?? getSrcSet(src, width, height, fit, FACTORS, quality);
+ 	const resolvedSizes = srcSet ? (sizes ?? "(max-width: 768px) 100vw, 50vw") : undefined;
+ 
+ 	return (

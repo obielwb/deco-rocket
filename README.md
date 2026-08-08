@@ -1,88 +1,80 @@
-# Deco Research 🔎
+# Deco Research
 
-> Ache seu próximo produto **com dados**, não com achismo.
+> Ache seu proximo produto com dados, nao com achismo.
 
-**Deco Research** é um sistema agêntico de pesquisa de produto para e-commerce, construído como um
-**MCP App nativo da [Deco](https://www.decocms.com/)**. A partir de um nicho (ex.: _"garrafa térmica"_),
-ele minera tendências de mercado em múltiplas fontes, cruza com o **catálogo real da loja (VTEX)** para
-achar _whitespace_, pontua as oportunidades com um score transparente e gera **conceito de produto,
-custo de fornecedor, imagem hero e copy** — entregando um **Relatório de Oportunidades de Produto**
-acionável.
+**Deco Research** e um sistema agentico de pesquisa de produto para e-commerce, construido como um
+**MCP App nativo da [Deco](https://www.decocms.com/)**. A partir de um nicho, ele minera sinais de mercado,
+cruza com o catalogo real da loja para achar whitespace, pontua oportunidades com um score transparente e gera
+conceito, custo estimado, imagem hero e copy para o produto.
 
-Feito para o hackathon **Agents for Commerce** (trilha _Search & Discovery / Catalog & Content_).
+Feito para o hackathon **Agents for Commerce**.
 
 ---
 
 ## O problema
 
-Decidir _qual produto novo lançar_ é uma das decisões de maior alavancagem — e maior fricção — de uma
-operação de e-commerce. Hoje é manual: alguém garimpa Google Trends, espia concorrente, chuta preço,
-pede imagem pro designer e negocia com fornecedor. São semanas de trabalho, sem dado concreto e com viés.
-É exatamente o tipo de tarefa repetitiva de alto valor que um agente faz melhor.
+Decidir qual produto novo lancar ainda costuma ser um processo manual: alguem olha tendencias, compara
+concorrentes, estima preco, pede criativo e tenta descobrir fornecedor. Isso toma tempo, espalha contexto
+em varias ferramentas e costuma acontecer com pouca rastreabilidade.
 
-## A solução — 3 pilares, 1 relatório
+## A solucao
 
-1. **Trend Intelligence** — Google Trends (interesse + _breakout queries_), Google Shopping (faixa de preço /
-   concorrência / reviews) e volume de busca (DataForSEO). Cruza com o **catálogo VTEX** da loja para achar
-   demanda que a loja **ainda não captura** (_whitespace_).
-2. **Concept & Sourcing** — score de oportunidade transparente → **conceito de produto** concreto (specs, público,
-   preço-alvo) via Claude → **custo de fornecedor** e margem estimada + **rascunho de RFQ** (e-mail de cotação).
-3. **Creative** — **imagem hero** do produto (Gemini _nano-banana_ / OpenAI gpt-image) + **copy** (título, SEO,
-   descrição de PDP, variações de anúncio).
+O projeto junta tres pilares em um unico report:
 
-Cada pilar é uma ou mais **MCP tools** reutilizáveis; a tool `RESEARCH_RUN` orquestra tudo ponta-a-ponta e
-renderiza o relatório numa **UI interativa (MCP App)**.
+1. **Trend intelligence**: sinais de demanda, preco, concorrencia e lacunas no catalogo.
+2. **Concept and sourcing**: score auditavel, conceito de produto e custo estimado de fornecedor.
+3. **Creative**: imagem hero e copy inicial para o produto.
+
+A tool `RESEARCH_RUN` orquestra o fluxo ponta a ponta e renderiza o resultado em uma UI interativa.
 
 ---
 
 ## Arquitetura
 
-Construído sobre o template oficial [`decocms/mcp-app`](https://github.com/decocms/mcp-app):
+Construido sobre o template oficial [`decocms/mcp-app`](https://github.com/decocms/mcp-app):
 
-- **`api/`** — MCP server (`@decocms/runtime`) rodando em Bun / qualquer runtime Web Standard.
-- **`web/`** — UI React 19 + Tailwind v4 (MCP App) que renderiza o resultado de `RESEARCH_RUN`.
-- **Config/secrets** — declarados em `StateSchema` (`api/types/env.ts`); cada instalação preenche no
-  connection do deco Studio. Em dev, caem via `.env` (fallback em `getConfig`).
-- **Degradação graciosa** — cada tool funciona isolada e sem depender de todas as credenciais; o relatório
-  sempre é válido e lista as fontes indisponíveis.
+- `api/`: MCP server (`@decocms/runtime`) rodando em Bun.
+- `web/`: UI React 19 + Tailwind v4 que renderiza o report.
+- `scripts/research.ts`: runner CLI para executar a pesquisa pelo terminal.
+- `tests/`: testes de score e pipeline.
 
-```
+```text
 api/
-  app.ts              # withRuntime() — registra tools, prompts, resource
-  config.ts           # getConfig(): state do Studio + fallback process.env
-  clients/            # SerpApi · DataForSEO · Anthropic · imagem · VTEX · Mercado Livre
-  lib/                # types (zod) + scoring puro (testável)
-  tools/              # as 11 MCP tools + RESEARCH_RUN (orquestrador)
-  resources/report.ts # serve a UI do relatório como MCP App
-web/tools/report/     # a UI do Relatório de Oportunidades
-scripts/research.ts   # runner CLI para rodar tudo pelo terminal
-tests/                # scoring (unit) + pipeline (E2E com degradação real)
+  app.ts              # registra tools, prompts e resource
+  config.ts           # state do Studio + fallback process.env
+  clients/            # integracoes externas
+  lib/                # tipos e logica de scoring
+  tools/              # MCP tools e RESEARCH_RUN
+  resources/report.ts # serve a UI do report como MCP App
+web/tools/report/     # UI do relatorio
+scripts/research.ts   # runner CLI
+tests/                # testes unitarios e de pipeline
 ```
 
-### MCP Tools
+### MCP tools
 
 | Tool | Pilar | O que faz |
-|------|-------|-----------|
-| `RESEARCH_RUN` | orquestrador | pesquisa ponta-a-ponta → Relatório de Oportunidades |
-| `TREND_GOOGLE_FETCH` | 1 | Google Trends: interesse no tempo + breakout queries |
-| `KEYWORD_VOLUME` | 1 | volume de busca / competição / CPC (DataForSEO) |
-| `SHOPPING_SCAN` | 1 | Google Shopping: preço min/mediana/max, concorrência, reviews |
-| `SOCIAL_VIRAL_SCAN` | 1 | sinal de demanda emergente (breakout) |
-| `CATALOG_GAP_ANALYSIS` | 1 | whitespace contra o catálogo VTEX da loja |
-| `OPPORTUNITY_SCORE` | 2 | score 0-100 com breakdown auditável |
-| `PRODUCT_CONCEPT_GEN` | 2 | conceito concreto de produto (Claude) |
-| `SUPPLIER_SOURCE` | 2 | custo/fornecedor (Mercado Livre + fallback) + rascunho de RFQ |
-| `RFQ_SEND` | 2 | envia RFQ ao fornecedor por e-mail (Resend) e rastreia a thread |
-| `RFQ_PARSE` | 2 | extrai cotação estruturada da resposta (Claude + fallback heurístico) |
-| `RFQ_LIST` | 2 | lista threads de RFQ e cotações recebidas |
-| `COPY_GEN` | 3 | título, SEO, PDP e copies de anúncio |
+|---|---|---|
+| `RESEARCH_RUN` | orquestrador | pesquisa ponta a ponta e gera o report |
+| `TREND_GOOGLE_FETCH` | 1 | interesse no tempo e breakout queries |
+| `KEYWORD_VOLUME` | 1 | volume de busca, competicao e CPC |
+| `SHOPPING_SCAN` | 1 | faixa de preco, concorrencia e reviews |
+| `SOCIAL_VIRAL_SCAN` | 1 | sinal de demanda emergente |
+| `CATALOG_GAP_ANALYSIS` | 1 | whitespace contra o catalogo da loja |
+| `OPPORTUNITY_SCORE` | 2 | score 0-100 com breakdown auditavel |
+| `PRODUCT_CONCEPT_GEN` | 2 | conceito concreto de produto |
+| `SUPPLIER_SOURCE` | 2 | custo estimado e rascunho de RFQ |
+| `RFQ_SEND` | 2 | envia RFQ por email |
+| `RFQ_PARSE` | 2 | extrai cotacao estruturada da resposta |
+| `RFQ_LIST` | 2 | lista threads de RFQ e cotacoes |
+| `COPY_GEN` | 3 | titulo, SEO, PDP e copy de anuncio |
 | `IMAGE_CONCEPT_GEN` | 3 | imagem hero do produto |
 
-### Score de oportunidade (transparente)
+### Score de oportunidade
 
-`score = 0.30·demanda + 0.25·momentum + 0.20·(1/concorrência) + 0.15·margem + 0.10·fit`
+`score = 0.30*demand + 0.25*momentum + 0.20*(1/competition) + 0.15*margin + 0.10*fit`
 
-Pesos explícitos em `api/lib/scoring.ts` — cada oportunidade traz o breakdown por dimensão e um _rationale_.
+Os pesos ficam explicitos em `api/lib/scoring.ts`, com breakdown por dimensao no resultado final.
 
 ---
 
@@ -92,84 +84,128 @@ Requisitos: [Bun](https://bun.sh).
 
 ```bash
 bun install
-cp .env.example .env          # preencha as chaves que você tiver (todas opcionais)
-
-# 1) Rodar a pesquisa pelo terminal (real, ponta-a-ponta)
-bun run research "garrafa térmica"
-bun run research "kit café especial" --top 3 --candidates 8
-#   → imprime o ranking e salva o relatório completo em dist/report.json
-
-# 2) Servir como MCP App e conectar ao deco Studio
-bun run dev                   # api (3001) + build da UI
-bun start                     # túnel → conecte https://<id>.deco.host/api/mcp no Studio
+cp .env.example .env
 ```
 
-No Studio, instale o app, preencha as credenciais no _connection_ e chame a tool **`RESEARCH_RUN`** (ou o
-prompt `research_product`) — o relatório aparece na UI interativa.
+### Fluxo 1: rodar a pesquisa pelo terminal
 
-### Credenciais (todas opcionais)
+```bash
+bun run research "garrafa termica"
+bun run research "kit cafe especial" --top 3 --candidates 8
+```
 
-| Provider | Variáveis | Usado por |
-|----------|-----------|-----------|
-| SerpApi | `SERPAPI_KEY` | Google Trends + Shopping |
-| DataForSEO | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | volume de busca |
-| Anthropic | `ANTHROPIC_API_KEY` (`ANTHROPIC_MODEL`) | conceito + copy |
-| Imagem | `GEMINI_API_KEY` **ou** `OPENAI_API_KEY` (`IMAGE_PROVIDER`) | imagem hero |
-| VTEX | `VTEX_ACCOUNT` / `VTEX_APP_KEY` / `VTEX_APP_TOKEN` | catálogo / whitespace |
-| Resend | `RESEND_API_KEY` / `RFQ_FROM_EMAIL` (`RFQ_WEBHOOK_SECRET`) | RFQ Agent (envio + inbound) |
+Isso imprime o ranking no terminal e salva o report completo em `dist/report.json`.
+
+### Fluxo 2: subir a API local usada pela interface Rocket
+
+```bash
+bun run dev:api
+```
+
+Com a API no ar, os endpoints locais ficam disponiveis em `http://127.0.0.1:3001/api/research/*`.
+Os reports persistidos ficam em `dist/reports/` e os produtos lancados ficam em
+`dist/launched-products.json`.
+
+### Fluxo 3: rodar junto com o storefront demo
+
+O storefront agora vive em `storefront/` dentro deste mesmo repo.
+
+1. Neste repo, suba a API:
+
+   ```bash
+   bun run dev:api
+   ```
+
+2. Na pasta `storefront/`, instale as dependencias e gere o build:
+
+   ```bash
+   npm install
+   npm run build
+   ```
+
+3. Ainda em `storefront/`, publique o preview local:
+
+   ```bash
+   npx vite preview --host 127.0.0.1 --port 4173
+   ```
+
+4. Abra `http://127.0.0.1:4173/rocket`.
+
+Se `DECO_RESEARCH_URL` nao estiver definido no storefront, a UI usa `http://127.0.0.1:3001`
+como backend padrao.
+
+### Fluxo 4: app MCP e tunnel para o Studio
+
+```bash
+bun run dev
+bun start
+```
+
+`bun run dev` sobe a API local e recompila a UI. `bun start` abre o tunnel para conectar
+`https://<id>.deco.host/api/mcp` no Studio.
+
+No Studio, instale o app, preencha as credenciais no _connection_ e chame a tool
+**`RESEARCH_RUN`** ou o prompt `research_product` para abrir o report na UI interativa.
+
+### Credenciais
+
+Todas as credenciais sao opcionais. O projeto degrada com graca quando alguma fonte nao esta disponivel.
+
+| Provider | Variaveis | Usado por |
+|---|---|---|
+| SerpApi | `SERPAPI_KEY` | Google Trends e Shopping |
+| DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` | volume de busca |
+| Anthropic | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | conceito e copy |
+| Imagem | `GEMINI_API_KEY` ou `OPENAI_API_KEY` | criativos com referencias visuais |
+| VTEX | `VTEX_ACCOUNT`, `VTEX_APP_KEY`, `VTEX_APP_TOKEN` | catalogo e whitespace |
+| Resend | `RESEND_API_KEY`, `RFQ_FROM_EMAIL`, `RFQ_WEBHOOK_SECRET` | RFQ Agent |
 
 ---
 
 ## Testes
 
 ```bash
-bun test          # scoring (unit) + pipeline E2E (degradação graciosa; integração real se houver SERPAPI_KEY)
-bun run check     # tipos (tsc)
-bun run ci:check  # lint + format (Biome)
+bun test
+bun run check
+bun run ci:check
 ```
 
-O teste de pipeline roda o `RESEARCH_RUN` de verdade e valida que o **Report sempre respeita o schema**,
-mesmo sem nenhuma credencial. Com `SERPAPI_KEY` no ambiente, o teste de integração exige ≥1 oportunidade real.
+O teste de pipeline roda `RESEARCH_RUN` de verdade e valida que o report sempre respeita o schema,
+mesmo sem credenciais. Com `SERPAPI_KEY` no ambiente, o teste de integracao exige ao menos uma
+oportunidade real.
 
 ---
 
-## Conector de fornecedores — RFQ Agent (implementado)
+## Conector de fornecedores - RFQ Agent
 
-Fecha o loop "achei o produto → **cotei com fornecedor de verdade**". A Deco não tem conector nativo de
-_sourcing_, então implementamos um **RFQ Agent** próprio:
+O RFQ Agent fecha o loop entre achar o produto e cotar com fornecedor de verdade:
 
-1. **`RFQ_SEND`** — compõe um pedido de cotação estruturado (`[RFQ-<id>]` no assunto p/ correlação) e **envia
-   por e-mail via [Resend](https://resend.com)**; rastreia a thread. Use `dryRun:true` para compor sem enviar.
-2. **Webhook de inbound** (`POST /webhooks/rfq-inbound`) — recebe a resposta do fornecedor, casa pelo `[RFQ-<id>]`
-   (ou plus-address `rfq+<id>@…`), extrai a **cotação estruturada** (preço por faixa, MOQ, prazo, pagamento) e
-   anexa à thread. Autenticado por `RFQ_WEBHOOK_SECRET`.
-3. **`RFQ_PARSE` / `RFQ_LIST`** — parse manual de uma resposta colada e listagem das cotações recebidas.
+1. `RFQ_SEND`: compoe um pedido de cotacao estruturado e envia por email via Resend.
+2. `POST /webhooks/rfq-inbound`: recebe a resposta do fornecedor, correlaciona a thread e extrai a cotacao.
+3. `RFQ_PARSE` e `RFQ_LIST`: parse manual de respostas coladas e listagem das cotacoes recebidas.
 
-O parse usa **Claude** quando `ANTHROPIC_API_KEY` está setado e **cai para um parser heurístico (regex)** caso
-contrário — então webhook e testes funcionam offline. Custo/margem continuam vindo do Mercado Livre (com
-fallback para Google Shopping) no `SUPPLIER_SOURCE`.
+O parse usa Claude quando `ANTHROPIC_API_KEY` esta configurado e cai para um parser heuristico quando nao
+esta, entao o webhook e os testes continuam funcionando offline.
 
-**Setup do Resend:** verifique um domínio no Resend, defina `RFQ_FROM_EMAIL` (remetente verificado) e
-`RESEND_API_KEY`. Para inbound automático, configure o **Resend Inbound** (MX + webhook) apontando para
-`https://<seu-deploy>/webhooks/rfq-inbound?secret=<RFQ_WEBHOOK_SECRET>`. Sem inbound configurado, use `RFQ_PARSE`
-colando a resposta.
+Persistencia atual:
 
-> Persistência: as threads ficam num store **em memória** (`api/lib/rfq-store.ts`) — ótimo p/ demo e deploy
-> single-instance. O módulo expõe o _seam_ (`save/get/list/addQuote`) para trocar por Cloudflare KV/D1 ou a Deco DB.
+- threads de RFQ ficam em memoria em `api/lib/rfq-store.ts`
+- reports ficam em `dist/reports/`
+- produtos lancados ficam em `dist/launched-products.json`
 
-### Outros caminhos de fornecedor (roadmap)
-- **VTEX Sellers/Marketplace API** — cotação dos fornecedores já cadastrados na loja.
-- **1688 / Alibaba API** — sourcing de fornecedor novo com MOQ e custo.
-- **MCP Mesh Bridge** ([`decocms/bridge`](https://github.com/decocms/bridge)) — opera portais de fornecedor
-  **sem API** (extensão Chrome vira conector do agente): navega e extrai cotação/MOQ.
+### Outros caminhos de fornecedor
+
+- VTEX Sellers or Marketplace API
+- 1688 ou Alibaba API
+- [`decocms/bridge`](https://github.com/decocms/bridge) para portais sem API
 
 ## Roadmap
 
-- Persistência durável de runs/relatórios/RFQs (Cloudflare KV/D1 ou Deco DB) — histórico e comparação temporal.
-- TikTok Creative Center / Meta Ad Library nativos no `SOCIAL_VIRAL_SCAN`.
-- Deploy Cloudflare Workers (entrypoint `api/main.cloudflare.ts` + `wrangler.toml`).
-- Push automático do produto aprovado para o catálogo VTEX (draft de SKU).
+- Persistencia duravel de runs, reports e RFQs
+- TikTok Creative Center e Meta Ad Library no `SOCIAL_VIRAL_SCAN`
+- Deploy em Cloudflare Workers
+- Push automatico do produto aprovado para o catalogo VTEX
 
 ---
 
-Construído com Claude Code + Deco. Licença MIT.
+Construido com Claude Code + Deco. Licenca MIT.

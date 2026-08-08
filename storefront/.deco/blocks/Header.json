@@ -1,0 +1,56 @@
+{
+  "__resolveType": "site/sections/Header/Header.tsx",
+  "searchbar": {
+    "placeholder": "What are you looking for?",
+    "loader": {
+      "__resolveType": "resolved",
+      "data": null
+    }
+  },
+  "alerts": [],
+  "logo": {
+    "src": "https://decoims.com/decocms/e8c6326e-e009-4e3c-9787-b2fe25a1b993/deco-logo.png",
+    "alt": "Deco Storefront",
+    "width": 67,
+    "height": 28
+  },
+  "navItems": [
+    {
+      "@type": "SiteNavigationElement",
+      "url": "/shirts",
+      "name": "Shirts",
+      "children": []
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "url": "/hoodies-sweatshirts",
+      "name": "Hoodies & Sweatshirts",
+      "children": []
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "url": "/jackets-outerwear",
+      "name": "Jackets & Outerwear",
+      "children": []
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "url": "/bottoms",
+      "name": "Bottoms",
+      "children": []
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "url": "/accessories",
+      "name": "Accessories",
+      "children": []
+    },
+    {
+      "@type": "SiteNavigationElement",
+      "url": "/stickers",
+      "name": "Stickers",
+      "children": []
+    }
+  ],
+  "loading": "eager"
+}

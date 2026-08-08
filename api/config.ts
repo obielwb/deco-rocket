@@ -33,6 +33,7 @@ export const defaults = {
 	lang: (c: State) => c.LANG || "pt-BR",
 	anthropicModel: (c: State) => c.ANTHROPIC_MODEL || "claude-sonnet-5",
 	imageProvider: (c: State) => c.IMAGE_PROVIDER || "gemini",
+	openaiImageModel: (c: State) => c.OPENAI_IMAGE_MODEL || "gpt-image-2",
 	vtexEnv: (c: State) => c.VTEX_ENVIRONMENT || "vtexcommercestable",
 	rfqFromName: (c: State) => c.RFQ_FROM_NAME || "Equipe de Compras",
 };
