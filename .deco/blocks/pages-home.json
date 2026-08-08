@@ -1,0 +1,290 @@
+{
+  "name": "Home Page",
+  "sections": [
+    {
+      "__resolveType": "Deco"
+    },
+    {
+      "__resolveType": "Header"
+    },
+    {
+      "__resolveType": "site/sections/Content/Hero.tsx",
+      "slides": [
+        {
+          "image": "https://decoims.com/demo-storefront/2026/07/57440993-8c68-4943-9084-1c947c1d0fd5-banner1.png?quality=original",
+          "mobileImage": "https://decoims.com/demo-storefront/2026/07/611a7feb-6906-4d6e-9965-ca2bcf0e7081-banner1-mob.png",
+          "headline": "NEW SEASON, UP TO 60% OFF",
+          "href": "/s?q=shoes&page=0",
+          "product": {
+            "__resolveType": "site/loaders/productByHandle.ts",
+            "handle": "deco-tee"
+          }
+        },
+        {
+          "image": "https://decoims.com/demo-storefront/2026/07/ba0261c3-bee6-40bd-b7a4-ce12083c7be5-banner2.png",
+          "mobileImage": "https://decoims.com/demo-storefront/2026/07/9b92f808-9ae1-40ed-8a88-8a9929347647-banner2-mob.png",
+          "headline": "THE DENIM EDIT IS HERE",
+          "href": "/s?q=jeans",
+          "product": {
+            "__resolveType": "site/loaders/productByHandle.ts",
+            "handle": "deco-cap"
+          }
+        },
+        {
+          "image": "https://decoims.com/demo-storefront/2026/07/5a5dbcb8-eaaa-494f-8476-f32a029facf3-banner3.png",
+          "mobileImage": "https://decoims.com/demo-storefront/2026/07/62941bd2-b774-4445-8533-2ca6db199f15-banner3-mob.png",
+          "headline": "ACCESSORIES THAT FINISH THE LOOK",
+          "href": "/accessories",
+          "product": {
+            "__resolveType": "site/loaders/productByHandle.ts",
+            "handle": "deco-sweatpants"
+          }
+        }
+      ],
+      "interval": 6,
+      "categories": [
+        {
+          "label": "Shirts",
+          "href": "/shirts",
+          "image": "https://decoims.com/demo-storefront/2026/07/dcd77bbd-4969-4186-aaaa-d8bc9e4b84c1-chatgpt-image-jul-27-2026-06_54_44-pm.png"
+        },
+        {
+          "label": "Accessories",
+          "href": "/accessories",
+          "image": "https://decoims.com/demo-storefront/2026/07/543e04d2-011d-4cc2-8875-46a1a08bef3d-accessories.png"
+        },
+        {
+          "label": "Stickers",
+          "href": "/stickers",
+          "image": "https://decoims.com/demo-storefront/2026/07/6df3a538-085e-4243-93a8-0b961b99ae26-stickers.png"
+        }
+      ],
+      "infoBullets": [
+        "Free shipping on orders over $50",
+        "Up to $40 off your first order",
+        "Interest-free installments",
+        "Up to 15% off paying cash"
+      ]
+    },
+    {
+      "__resolveType": "site/sections/Product/ProductShelf.tsx",
+      "title": "Discover Our Featured Picks",
+      "cta": "/mono",
+      "products": {
+        "__resolveType": "Product List Loader"
+      }
+    },
+    {
+      "__resolveType": "website/flags/multivariate/section.ts",
+      "variants": [
+        {
+          "value": {
+            "__resolveType": "site/sections/Category/CategoryGrid.tsx",
+            "title": "Departments",
+            "cta": "/all",
+            "items": [
+              {
+                "label": "Shirts",
+                "href": "/shirts",
+                "image": "https://decoims.com/storefront-tanstack/5ad15dbc-205a-4546-9801-5d18ed393caa/1742560225714-38c33c9f-14a1-4048-973b-dc2a75caf1fa.png"
+              },
+              {
+                "href": "/hoodies-sweatshirts",
+                "label": "Hoodies & Sweatshirts",
+                "image": "https://decoims.com/storefront-tanstack/24f19e67-c8f4-4601-8c86-379a92747535/1742560227121-f6bea2b8-b248-4b42-9246-6e924a0acc8b.png"
+              },
+              {
+                "href": "/jackets-outerwear",
+                "label": "Jackets & Outerwear",
+                "image": "https://decoims.com/storefront-tanstack/adfa8d1d-9a08-427b-ab0a-32dec0cc8fc3/1742560228502-1b0ecaa2-9a13-4de2-bf17-5196948ed128.png"
+              },
+              {
+                "href": "/bottoms",
+                "label": "Bottoms",
+                "image": "https://decoims.com/storefront-tanstack/048e3ef7-c5c6-41b7-aa3a-7b3822502d41/1742560231577-d0433c00-cd26-4638-b519-0cb64b9f82e8.png"
+              },
+              {
+                "href": "/accessories",
+                "label": "Accessories",
+                "image": "https://decoims.com/storefront-tanstack/ba682b53-64d8-44b7-8e57-18d02f5dcf5a/1742560230067-92129655-fe40-4b29-8fdb-e7f71e67a5d1.png"
+              },
+              {
+                "href": "/stickers",
+                "label": "Stickers",
+                "image": "https://decoims.com/storefront-tanstack/ba682b53-64d8-44b7-8e57-18d02f5dcf5a/1742560230067-92129655-fe40-4b29-8fdb-e7f71e67a5d1.png"
+              }
+            ]
+          },
+          "rule": {
+            "__resolveType": "website/matchers/never.ts"
+          }
+        }
+      ]
+    },
+    {
+      "__resolveType": "site/sections/Images/Banner.tsx",
+      "title": "Capybara Helper",
+      "cta": {
+        "label": "Shop now",
+        "href": "/s?q=jeans"
+      },
+      "price": "79,99",
+      "priceLabel": "Starting at",
+      "images": {
+        "desktop": "https://decoims.com/demo-storefront/2026/07/161c9ecb-ceea-4562-bc55-01a2967dc4f2-banner4.png",
+        "mobile": "https://decoims.com/demo-storefront/2026/07/fdcd0e46-2eb0-4d3f-9de2-ec8b7d6b8fc0-banner4-mob.png"
+      }
+    },
+    {
+      "__resolveType": "website/sections/Rendering/Lazy.tsx",
+      "section": {
+        "__resolveType": "site/sections/Product/ProductShelfTabbed.tsx",
+        "title": "Hottest Deals",
+        "tabs": [
+          {
+            "products": {
+              "__resolveType": "shopify/loaders/ProductList.ts",
+              "props": {
+                "sort": "",
+                "query": "hat and bag",
+                "count": 10
+              },
+              "filters": {
+                "tags": [],
+                "productTypes": [],
+                "productVendors": [],
+                "variantOptions": []
+              }
+            },
+            "title": "Accessories"
+          },
+          {
+            "products": {
+              "__resolveType": "shopify/loaders/ProductList.ts",
+              "props": {
+                "sort": "",
+                "query": "Shirts",
+                "count": 10
+              },
+              "filters": {
+                "tags": [],
+                "productTypes": [],
+                "productVendors": [],
+                "variantOptions": []
+              }
+            },
+            "title": "Fashion"
+          },
+          {
+            "products": {
+              "__resolveType": "shopify/loaders/ProductList.ts",
+              "props": {
+                "sort": "",
+                "query": "stickers",
+                "count": 10
+              },
+              "filters": {
+                "tags": [],
+                "productTypes": [],
+                "productVendors": [],
+                "variantOptions": []
+              }
+            },
+            "title": "Stickers"
+          }
+        ]
+      }
+    },
+    {
+      "__resolveType": "site/sections/Content/PromoGrid.tsx",
+      "title": "Combine tecnologia avançada, design elegante e desempenho",
+      "tabs": [
+        {
+          "label": "Melhores Ofertas",
+          "cards": [
+            {
+              "label": "Moto Watch Fit",
+              "headline": "Seu estilo, seu tempo",
+              "cta": "Shop Now",
+              "href": "/s?q=watch",
+              "image": "https://decoims.com/storefront-tanstack/24f19e67-c8f4-4601-8c86-379a92747535/1742560227121-f6bea2b8-b248-4b42-9246-6e924a0acc8b.png"
+            },
+            {
+              "label": "Motorola Razr™",
+              "headline": "Brilho e atitude com Motorola Razr™",
+              "cta": "Shop Now",
+              "href": "/s?q=razr",
+              "image": "https://decoims.com/storefront-tanstack/5ad15dbc-205a-4546-9801-5d18ed393caa/1742560225714-38c33c9f-14a1-4048-973b-dc2a75caf1fa.png"
+            },
+            {
+              "label": "Edge 60 Fusion",
+              "headline": "Desafie seus limites com Edge 60 Fusion",
+              "cta": "Shop Now",
+              "href": "/s?q=edge-60-fusion",
+              "image": "https://decoims.com/storefront-tanstack/adfa8d1d-9a08-427b-ab0a-32dec0cc8fc3/1742560228502-1b0ecaa2-9a13-4de2-bf17-5196948ed128.png"
+            }
+          ]
+        },
+        {
+          "label": "Lançamentos",
+          "cards": [
+            {
+              "label": "Moto Watch Fit",
+              "headline": "Seu estilo, seu tempo",
+              "cta": "Shop Now",
+              "href": "/s?q=watch",
+              "image": "https://decoims.com/storefront-tanstack/ba682b53-64d8-44b7-8e57-18d02f5dcf5a/1742560230067-92129655-fe40-4b29-8fdb-e7f71e67a5d1.png"
+            },
+            {
+              "label": "Motorola Razr™",
+              "headline": "Brilho e atitude com Motorola Razr™",
+              "cta": "Shop Now",
+              "href": "/s?q=razr",
+              "image": "https://decoims.com/storefront-tanstack/24f19e67-c8f4-4601-8c86-379a92747535/1742560227121-f6bea2b8-b248-4b42-9246-6e924a0acc8b.png"
+            },
+            {
+              "label": "Edge 60 Fusion",
+              "headline": "Desafie seus limites com Edge 60 Fusion",
+              "cta": "Shop Now",
+              "href": "/s?q=edge-60-fusion",
+              "image": "https://decoims.com/storefront-tanstack/5ad15dbc-205a-4546-9801-5d18ed393caa/1742560225714-38c33c9f-14a1-4048-973b-dc2a75caf1fa.png"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "__resolveType": "site/sections/Newsletter/Newsletter.tsx",
+      "form": {
+        "label": "Sign up",
+        "placeholder": "Email address"
+      },
+      "notices": {
+        "empty": {
+          "title": "Get top deals, latest trends, and more.",
+          "description": "Receive our news and promotions in advance. Enjoy and get 10% off your first purchase. For more information click here."
+        },
+        "success": {
+          "title": "Thank you for subscribing!",
+          "description": "You’re now signed up to receive the latest news, trends, and exclusive promotions directly to your inbox. Stay tuned!"
+        },
+        "failed": {
+          "title": "Oops!. Something went wrong!",
+          "description": "Something went wrong. Please try again. If the problem persists, please contact us."
+        }
+      }
+    },
+    {
+      "__resolveType": "Footer"
+    }
+  ],
+  "__resolveType": "website/pages/Page.tsx",
+  "path": "/",
+  "seo": {
+    "__resolveType": "website/sections/Seo/SeoV2.tsx",
+    "title": "Demo Storefront — New Season, Up to 60% Off",
+    "description": "Shop the new season at Demo Storefront: shirts, denim, accessories and more. Free shipping on orders over $50 and interest-free installments.",
+    "image": "https://decoims.com/demo-storefront/2026/07/57440993-8c68-4943-9084-1c947c1d0fd5-banner1.png?quality=original",
+    "type": "website"
+  }
+}

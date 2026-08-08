@@ -1,0 +1,339 @@
+@import "tailwindcss";
+@plugin "daisyui";
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  color-scheme: light;
+  --color-primary: #0a0a0a;
+  --color-secondary: #f0f0f0;
+  --color-accent: #e5e5e5;
+  --color-neutral: #171717;
+  --color-base-100: #ffffff;
+  --color-base-200: #ffffff;
+  --color-base-300: #e5e5e5;
+  --color-info: #2e72d2;
+  --color-success: #008060;
+  --color-warning: #b45309;
+  --color-error: #c0362c;
+}
+
+/*
+ * Design system tokens, sourced from the Figma "Deco Flagship Template" file.
+ * Naming mirrors the Figma variable names (border-radius/rounded-sm, menu/menu-bg, …)
+ * so components map 1:1 back to the design.
+ */
+@theme {
+  --color-*: initial;
+
+  --color-white: #fff;
+  --color-black: #000;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-inherit: inherit;
+  --font-sans: "Switzer", ui-sans-serif, system-ui, sans-serif;
+
+  /* Gray scale (Tailwind v3 default, required for bg-gray-*, text-gray-*, etc.) */
+  --color-gray-50: #fafafa;
+  --color-gray-100: #f5f5f5;
+  --color-gray-200: #e5e5e5;
+  --color-gray-300: #d4d4d4;
+  --color-gray-400: #a3a3a3;
+  --color-gray-500: #737373;
+  --color-gray-600: #525252;
+  --color-gray-700: #404040;
+  --color-gray-800: #262626;
+  --color-gray-900: #171717;
+  --color-gray-950: #0a0a0a;
+
+  /* Ink — primary text & solid surfaces */
+  --color-ink: #0a0a0a;
+  --color-ink-soft: #262626;
+  --color-muted: #737373;
+  --color-muted-soft: rgb(64 64 64 / 60%);
+
+  /* Glass — the frosted-blur surface used across nav, tags, PDP panel, banners */
+  --color-glass: rgb(240 240 240 / 60%);
+  --color-glass-strong: rgb(245 245 245 / 60%);
+  --color-glass-tag: rgb(166 166 166 / 60%);
+  --color-glass-white: rgb(255 255 255 / 40%);
+
+  /* Radii — named to match the Figma "border-radius/*" variables */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Type scale — additions beyond Tailwind's default xs(12)/sm(14)/lg(18) */
+  --text-2xs: 0.625rem; /* 10px — tags, size pills, timestamps */
+  --text-2xs--line-height: 0.834;
+  --text-display: 1.625rem; /* 26px — hero numerals, section headings */
+  --text-display--line-height: 1.15;
+
+  /*
+   * Motion — enter/exit uses ease-out (responsive, decelerating); on-screen
+   * movement uses ease-in-out; hover/color uses the browser default `ease`.
+   * Keep UI transitions under 300ms per web-animation-design guidelines.
+   */
+  --ease-out-soft: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-soft: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --duration-fast: 150ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+  --duration-reveal: 500ms;
+}
+
+/*
+ * Glass surfaces — flat blur + tint per Figma (#F0F0F0 @ 60%, 32px blur).
+ * Named "frost" (not "glass") because daisyUI reserves the ".glass" class
+ * name for its own utility, which bundles in a border/shadow we don't want —
+ * same name, same specificity, so its box-shadow was winning regardless of
+ * what this rule set.
+ */
+@utility frost {
+  background-color: var(--color-glass);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+}
+
+@utility glass-strong {
+  background-color: var(--color-glass-strong);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+}
+
+@utility glass-white {
+  background-color: var(--color-glass-white);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Press feedback for tappable atoms (buttons, pills, cards) */
+@utility tap-scale {
+  transition: transform var(--duration-fast) ease;
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+/* Scroll-reveal primitive — paired with the useRevealOnScroll hook (adds
+   data-revealed="true" via IntersectionObserver). Blur+fade+rise on entry. */
+@utility reveal {
+  opacity: 0;
+  filter: blur(8px);
+  transform: translateY(12px);
+  transition:
+    opacity var(--duration-reveal) var(--ease-out-soft),
+    filter var(--duration-reveal) var(--ease-out-soft),
+    transform var(--duration-reveal) var(--ease-out-soft);
+
+  &[data-revealed="true"] {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+  }
+
+  .tap-scale {
+    transition: none;
+  }
+
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* DaisyUI v5: flatten depth/noise to match v4 look */
+:root {
+  --depth: 0;
+  --noise: 0;
+}
+
+/* DaisyUI v5 removed carousel overflow — re-add for horizontal scroll.
+   overflow-y must be pinned to hidden: leaving it "visible" computes as
+   "auto" per spec once overflow-x is non-visible, so any item a few px
+   taller than the row silently opens a vertical scrollbar too. */
+.carousel {
+  -webkit-overflow-scrolling: touch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+}
+
+.carousel > * {
+  scroll-snap-align: start;
+}
+
+ul.carousel,
+ol.carousel {
+  list-style: none;
+  padding: 0;
+}
+
+/* Container: replaces Tailwind v3 container plugin config */
+@utility container {
+  margin-inline: auto;
+  padding-inline: 1rem;
+  width: 100%;
+
+  @media (width >= 640px) {
+    max-width: 640px;
+  }
+  @media (width >= 768px) {
+    max-width: 768px;
+  }
+  @media (width >= 1024px) {
+    max-width: 1024px;
+  }
+  @media (width >= 1280px) {
+    max-width: 1280px;
+  }
+  @media (width >= 1536px) {
+    max-width: 1536px;
+  }
+}
+
+/* Deferred section visibility — reduces layout shift while loading */
+section[data-deferred="true"] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+.deferred-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+@view-transition {
+  navigation: auto;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  /* Drawer / modal scroll lock */
+  body:has(dialog[open]),
+  body.search-modal-open,
+  body:has(.drawer-toggle:checked) {
+    overflow: hidden;
+  }
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.rocket-login {
+  background:
+    radial-gradient(circle at 14% 12%, rgb(183 243 74 / 18%), transparent 28rem),
+    linear-gradient(135deg, #efefeb 0%, #fafaf8 48%, #ecece7 100%);
+}
+
+.rocket-orbit {
+  position: absolute;
+  width: 34rem;
+  height: 34rem;
+  right: -12rem;
+  top: -10rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 5rem rgb(255 255 255 / 2%),
+    0 0 0 10rem rgb(255 255 255 / 1.5%);
+}
+
+.rocket-orbit::after {
+  content: "";
+  position: absolute;
+  width: 0.75rem;
+  height: 0.75rem;
+  left: 4.2rem;
+  bottom: 5.2rem;
+  border-radius: 999px;
+  background: #b7f34a;
+  box-shadow: 0 0 24px #b7f34a;
+}
+
+.rocket-grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 8%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 8%) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(90deg, black, transparent 75%);
+}
+
+.rocket-loader {
+  background:
+    radial-gradient(circle at center, #fff 52%, transparent 53%),
+    conic-gradient(from 90deg, #0a0a0a, #b7f34a, #e5e5e5, #0a0a0a);
+  animation: rocket-spin 2s linear infinite;
+}
+
+.rocket-loader svg {
+  animation: rocket-spin 2s linear infinite reverse;
+}
+
+.rocket-progress {
+  width: 42%;
+  animation: rocket-progress 1.8s ease-in-out infinite alternate;
+}
+
+.rocket-collection-hero {
+  background-color: #d9ff45;
+  background-image:
+    linear-gradient(90deg, transparent 0 72%, rgb(139 128 237 / 20%) 72% 86%, transparent 86%),
+    linear-gradient(rgb(10 10 10 / 7%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(10 10 10 / 7%) 1px, transparent 1px);
+  background-size:
+    100% 100%,
+    88px 88px,
+    88px 88px;
+}
+
+@keyframes rocket-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rocket-progress {
+  from {
+    transform: translateX(-90%);
+  }
+  to {
+    transform: translateX(230%);
+  }
+}
