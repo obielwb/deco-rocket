@@ -108,20 +108,22 @@ Os reports persistidos ficam em `dist/reports/` e os produtos lancados ficam em
 
 ### Fluxo 3: rodar junto com o storefront demo
 
+O storefront agora vive em `storefront/` dentro deste mesmo repo.
+
 1. Neste repo, suba a API:
 
    ```bash
    bun run dev:api
    ```
 
-2. No repo `demo-storefront-reference`, instale as dependencias e gere o build:
+2. Na pasta `storefront/`, instale as dependencias e gere o build:
 
    ```bash
    npm install
    npm run build
    ```
 
-3. Ainda no repo do storefront, publique o preview local:
+3. Ainda em `storefront/`, publique o preview local:
 
    ```bash
    npx vite preview --host 127.0.0.1 --port 4173
