@@ -9,6 +9,16 @@ const brl = (value: number | null | undefined) =>
 				maximumFractionDigits: 0,
 			}).format(value);
 
+/** CPC is usually under R$ 2 — rounding to whole reais shows every bid as R$ 0. */
+const brlCents = (value: number | null | undefined) =>
+	value == null
+		? "Sem dado"
+		: new Intl.NumberFormat("pt-BR", {
+				style: "currency",
+				currency: "BRL",
+				minimumFractionDigits: 2,
+			}).format(value);
+
 /** Build report-ready evidence cards without inventing native provider data. */
 export function buildSourcePreviews(
 	opportunity: Opportunity,
@@ -18,7 +28,9 @@ export function buildSourcePreviews(
 	const previews: SourcePreview[] = [];
 
 	if (enabled.has("google_trends")) {
-		const trend = opportunity.trend;
+		// A signal without a series carries no evidence — show it as missing
+		// rather than as a collected source reading "0/100".
+		const trend = opportunity.trend?.timeline.length ? opportunity.trend : null;
 		previews.push({
 			source: "google_trends",
 			label: "Google Trends",
@@ -45,7 +57,7 @@ export function buildSourcePreviews(
 	}
 
 	if (enabled.has("social_viral")) {
-		const trend = opportunity.trend;
+		const trend = opportunity.trend?.timeline.length ? opportunity.trend : null;
 		const visualOffers = (opportunity.market?.offers ?? [])
 			.filter((offer) => offer.thumbnail)
 			.slice(0, 3);
@@ -114,7 +126,10 @@ export function buildSourcePreviews(
 	}
 
 	if (enabled.has("keyword_volume")) {
-		const volume = opportunity.volume;
+		// DataForSEO returns a row per requested keyword even when it has no data
+		// for it, so presence of the row proves nothing — the volume does.
+		const volume =
+			opportunity.volume?.searchVolume != null ? opportunity.volume : null;
 		previews.push({
 			source: "keyword_volume",
 			label: "Volume de busca",
@@ -131,12 +146,13 @@ export function buildSourcePreviews(
 						},
 						{
 							label: "Competição",
+							// competition_index is already 0-100.
 							value:
 								volume.competition == null
 									? "Sem dado"
-									: `${Math.round(volume.competition * 100)}%`,
+									: `${Math.round(volume.competition)}%`,
 						},
-						{ label: "CPC", value: brl(volume.cpc) },
+						{ label: "CPC", value: brlCents(volume.cpc) },
 					]
 				: [],
 			items: [],

@@ -12,39 +12,61 @@ interface OpenAIResponse {
 	choices?: { message?: { content?: string | null } }[];
 }
 
-/** Low-level completion against the Anthropic Messages API. */
+/** True when any text-LLM credential is usable, whichever provider it is. */
+export function hasLlmCredential(env: unknown): boolean {
+	const c = getConfig(env);
+	return Boolean(c.OPENAI_API_KEY || c.ANTHROPIC_API_KEY);
+}
+
+/**
+ * Resolve which provider actually serves a completion.
+ *
+ * `LLM_PROVIDER` decides (default `openai`), but a preference for a provider
+ * with no key falls through to the one that has a key — asking for Anthropic
+ * without an Anthropic key should degrade to the working provider rather than
+ * fail the whole report.
+ */
+function resolveProvider(
+	c: ReturnType<typeof getConfig>,
+): "openai" | "anthropic" {
+	const preferred = defaults.llmProvider(c);
+	if (preferred === "anthropic" && c.ANTHROPIC_API_KEY) return "anthropic";
+	if (c.OPENAI_API_KEY) return "openai";
+	if (c.ANTHROPIC_API_KEY) return "anthropic";
+	throw new MissingCredentialError("openai_or_anthropic");
+}
+
+/** Low-level text completion, routed to the configured provider. */
 export async function complete(
 	env: unknown,
 	opts: { system?: string; prompt: string; maxTokens?: number },
 ): Promise<string> {
 	const c = getConfig(env);
-	if (!c.ANTHROPIC_API_KEY) {
-		if (c.OPENAI_API_KEY) {
-			const data = await httpJson<OpenAIResponse>(OPENAI_BASE, {
-				method: "POST",
-				headers: {
-					authorization: `Bearer ${c.OPENAI_API_KEY}`,
-					"content-type": "application/json",
-				},
-				timeoutMs: 60000,
-				body: JSON.stringify({
-					model: c.OPENAI_TEXT_MODEL || "gpt-4.1-mini",
-					max_completion_tokens: opts.maxTokens ?? 1500,
-					messages: [
-						...(opts.system ? [{ role: "system", content: opts.system }] : []),
-						{ role: "user", content: opts.prompt },
-					],
-				}),
-			});
-			return data.choices?.[0]?.message?.content ?? "";
-		}
-		throw new MissingCredentialError("anthropic_or_openai");
+
+	if (resolveProvider(c) === "openai") {
+		const data = await httpJson<OpenAIResponse>(OPENAI_BASE, {
+			method: "POST",
+			headers: {
+				authorization: `Bearer ${c.OPENAI_API_KEY}`,
+				"content-type": "application/json",
+			},
+			timeoutMs: 60000,
+			body: JSON.stringify({
+				model: defaults.openaiTextModel(c),
+				max_completion_tokens: opts.maxTokens ?? 1500,
+				messages: [
+					...(opts.system ? [{ role: "system", content: opts.system }] : []),
+					{ role: "user", content: opts.prompt },
+				],
+			}),
+		});
+		return data.choices?.[0]?.message?.content ?? "";
 	}
 
 	const data = await httpJson<AnthropicResponse>(BASE, {
 		method: "POST",
 		headers: {
-			"x-api-key": c.ANTHROPIC_API_KEY,
+			"x-api-key": c.ANTHROPIC_API_KEY as string,
 			"anthropic-version": "2023-06-01",
 			"content-type": "application/json",
 		},

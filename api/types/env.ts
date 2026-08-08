@@ -20,6 +20,10 @@ export const StateSchema = z.object({
 	DATAFORSEO_PASSWORD: z.string().optional().describe("DataForSEO password"),
 
 	// LLM (concept + copy generation)
+	LLM_PROVIDER: z
+		.enum(["openai", "anthropic"])
+		.optional()
+		.describe("LLM provider for concept, copy & RFQ parsing (default: openai)"),
 	ANTHROPIC_API_KEY: z
 		.string()
 		.optional()

@@ -1,14 +1,13 @@
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
+import { dataForSeoStatus } from "./clients/dataforseo.ts";
+import { serpApiStatus } from "./clients/serpapi.ts";
+import { getConfig } from "./config.ts";
 import {
 	materializeReportImages,
 	readCreativeAsset,
 } from "./creative-assets.ts";
-import { getConfig } from "./config.ts";
-import { buildSourcePreviews } from "./lib/source-previews.ts";
-import type { Report, ResearchSource } from "./lib/types.ts";
-import { CreativeTypeSchema, ResearchSourceSchema } from "./lib/types.ts";
 import {
 	deleteLaunchedProduct,
 	deleteLaunchedProductsByReport,
@@ -16,6 +15,9 @@ import {
 	launchProduct,
 	listLaunchedProducts,
 } from "./launched-products.ts";
+import { buildSourcePreviews } from "./lib/source-previews.ts";
+import type { Report, ResearchSource } from "./lib/types.ts";
+import { CreativeTypeSchema, ResearchSourceSchema } from "./lib/types.ts";
 import { researchRun } from "./tools/research.ts";
 import type { Env } from "./types/env.ts";
 
@@ -204,8 +206,11 @@ async function deleteStoredReport(reportId: string): Promise<{
 	await rm(join(reportsDir, `${reportId}.json`), { force: true });
 
 	try {
-		const legacy = JSON.parse(await readFile(legacyReportFile, "utf8")) as Report;
-		if (makeId(legacy) === reportId) await rm(legacyReportFile, { force: true });
+		const legacy = JSON.parse(
+			await readFile(legacyReportFile, "utf8"),
+		) as Report;
+		if (makeId(legacy) === reportId)
+			await rm(legacyReportFile, { force: true });
 	} catch {
 		// No legacy file to remove.
 	}
@@ -214,10 +219,25 @@ async function deleteStoredReport(reportId: string): Promise<{
 	return { deletedProducts, report: stored };
 }
 
+/**
+ * Credentials reach this HTTP API one of two ways: `process.env` when it runs
+ * as a plain Bun server, or the deco connection state carried on the platform
+ * env when it runs inside the runtime. Hardcoding an empty state here meant a
+ * deployed instance silently ran with no provider credentials at all — every
+ * source came back empty no matter what the Studio connection was configured
+ * with. The last platform env seen is remembered so the background scheduler,
+ * which has no request of its own, uses the same credentials.
+ */
+let platformEnv: unknown = null;
+
 function localEnv(): Env {
+	const state =
+		(platformEnv as { MESH_REQUEST_CONTEXT?: { state?: unknown } } | null)
+			?.MESH_REQUEST_CONTEXT?.state ?? {};
 	return {
 		IS_LOCAL: true,
-		MESH_REQUEST_CONTEXT: { state: {} },
+		...(platformEnv as object | null),
+		MESH_REQUEST_CONTEXT: { state },
 	} as unknown as Env;
 }
 
@@ -287,6 +307,31 @@ function scheduleNextAutomaticRun(): void {
 	}, next.getTime() - now.getTime());
 }
 
+/**
+ * Probe the paid providers once at boot. Without this a misconfigured or
+ * suspended account only shows up as a report full of empty sources, with
+ * nothing in the logs and nothing in the provider's own dashboard.
+ */
+export async function logProviderStatus(): Promise<void> {
+	const [serp, seo] = await Promise.all([
+		serpApiStatus(localEnv()),
+		dataForSeoStatus(localEnv()),
+	]);
+	const line = (name: string, s: { ok: boolean; detail?: string }) =>
+		console.log(
+			s.ok ? `  ✓ ${name}` : `  ✗ ${name}: ${s.detail ?? "indisponível"}`,
+		);
+	console.log("Provedores de pesquisa:");
+	line(
+		`SerpApi${serp.searchesLeft != null ? ` (${serp.searchesLeft} buscas restantes)` : ""}`,
+		serp,
+	);
+	line(
+		`DataForSEO${seo.balance != null ? ` (saldo $${seo.balance.toFixed(2)})` : ""}`,
+		seo,
+	);
+}
+
 export function startAutomaticResearchScheduler(): void {
 	if (process.env.AUTO_RESEARCH_ENABLED === "false" || automaticTimer) return;
 	void loadReports().then(scheduleNextAutomaticRun);
@@ -294,9 +339,11 @@ export function startAutomaticResearchScheduler(): void {
 
 export async function handleResearchApi(
 	request: Request,
+	env?: unknown,
 ): Promise<Response | null> {
 	const url = new URL(request.url);
 	if (!url.pathname.startsWith("/api/research")) return null;
+	if (env) platformEnv = env;
 	if (request.method === "OPTIONS") return json({ ok: true });
 	if (
 		request.method === "GET" &&
@@ -318,6 +365,12 @@ export async function handleResearchApi(
 
 	if (request.method === "GET" && url.pathname === "/api/research/health") {
 		const config = getConfig(localEnv());
+		// A configured key is not a working key. Probing both paid providers here
+		// is what turns "the report looks empty" into an actionable answer.
+		const [serp, seo] = await Promise.all([
+			serpApiStatus(localEnv()),
+			dataForSeoStatus(localEnv()),
+		]);
 		return json({
 			ok: true,
 			automation: {
@@ -325,17 +378,31 @@ export async function handleResearchApi(
 				nextRunAt: nextAutomaticRunAt,
 			},
 			providers: {
-				googleTrends: Boolean(config.SERPAPI_KEY),
-				socialRadar: Boolean(config.SERPAPI_KEY),
-				googleShopping: Boolean(config.SERPAPI_KEY),
-				keywordVolume: Boolean(
-					config.DATAFORSEO_LOGIN && config.DATAFORSEO_PASSWORD,
-				),
+				googleTrends: serp.ok,
+				socialRadar: serp.ok,
+				googleShopping: serp.ok,
+				keywordVolume: seo.ok,
 				catalog: Boolean(config.VTEX_ACCOUNT),
 				conceptAndCopy: Boolean(
 					config.ANTHROPIC_API_KEY || config.OPENAI_API_KEY,
 				),
 				image: Boolean(config.GEMINI_API_KEY || config.OPENAI_API_KEY),
+			},
+			providerDetails: {
+				serpapi: {
+					configured: Boolean(config.SERPAPI_KEY),
+					ok: serp.ok,
+					searchesLeft: serp.searchesLeft,
+					error: serp.detail,
+				},
+				dataforseo: {
+					configured: Boolean(
+						config.DATAFORSEO_LOGIN && config.DATAFORSEO_PASSWORD,
+					),
+					ok: seo.ok,
+					balance: seo.balance,
+					error: seo.detail,
+				},
 			},
 			reportCount: reports.size,
 		});

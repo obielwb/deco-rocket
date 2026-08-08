@@ -37,17 +37,40 @@ const DEFAULT_SOURCES: ResearchSource[] = [
 ];
 const DEFAULT_CREATIVES: CreativeType[] = ["product_hero"];
 
+/**
+ * Swallow a provider failure so one bad source cannot sink the run — but never
+ * silently. Every degraded source is logged and recorded, so a report always
+ * says which providers actually answered.
+ */
+function resilient<T>(
+	provider: string,
+	context: string,
+	degraded: Set<string>,
+): (error: unknown) => T | null {
+	return (error: unknown) => {
+		const message = error instanceof Error ? error.message : String(error);
+		console.warn(`[research] ${provider} falhou em "${context}": ${message}`);
+		degraded.add(provider);
+		return null;
+	};
+}
+
 /** Expand seed terms with breakout related queries from Google Trends. */
 async function expandCandidates(
 	env: unknown,
 	seeds: string[],
 	max: number,
+	degraded: Set<string>,
 ): Promise<{ candidates: string[]; seedTrends: Map<string, TrendSignal> }> {
 	const seedTrends = new Map<string, TrendSignal>();
 	const candidates = new Set(seeds.map((s) => s.trim()).filter(Boolean));
 
 	const trends = await Promise.all(
-		seeds.map((s) => googleTrends(env, s).catch(() => null)),
+		seeds.map((s) =>
+			googleTrends(env, s).catch(
+				resilient<TrendSignal>("serpapi_trends", s, degraded),
+			),
+		),
 	);
 	for (const t of trends) {
 		if (!t) continue;
@@ -121,7 +144,7 @@ export const researchRun = (env: Env) =>
 
 			// 1. Expand candidates from seeds + breakout queries.
 			const { candidates, seedTrends } = usesTrendSignals
-				? await expandCandidates(env, seeds, maxCandidates)
+				? await expandCandidates(env, seeds, maxCandidates, degraded)
 				: {
 						candidates: seeds.slice(0, maxCandidates),
 						seedTrends: new Map<string, TrendSignal>(),
@@ -131,10 +154,14 @@ export const researchRun = (env: Env) =>
 
 			// 2. Gather signals (trend + market per candidate, volume in one batch).
 			const volumesArr = enabled.has("keyword_volume")
-				? await keywordVolume(env, candidates).catch(() => null)
+				? await keywordVolume(env, candidates).catch(
+						resilient<KeywordVolume[]>(
+							"dataforseo",
+							candidates.join(", "),
+							degraded,
+						),
+					)
 				: [];
-			if (enabled.has("keyword_volume") && !volumesArr)
-				degraded.add("dataforseo");
 			const volumes = new Map<string, KeywordVolume>(
 				(volumesArr ?? []).map((v) => [v.keyword, v]),
 			);
@@ -146,14 +173,31 @@ export const researchRun = (env: Env) =>
 							? Promise.resolve(null)
 							: seedTrends.get(keyword)
 								? Promise.resolve(seedTrends.get(keyword) ?? null)
-								: googleTrends(env, keyword).catch(() => null),
+								: googleTrends(env, keyword).catch(
+										resilient<TrendSignal>("serpapi_trends", keyword, degraded),
+									),
 						enabled.has("google_shopping")
-							? googleShopping(env, keyword).catch(() => null)
+							? googleShopping(env, keyword).catch(
+									resilient<MarketSnapshot>(
+										"serpapi_shopping",
+										keyword,
+										degraded,
+									),
+								)
 							: Promise.resolve(null),
 						enabled.has("catalog")
-							? searchCatalog(env, keyword).catch(() => null)
+							? searchCatalog(env, keyword).catch(
+									resilient<{ count: number; sample?: string }>(
+										"catalog",
+										keyword,
+										degraded,
+									),
+								)
 							: Promise.resolve(null),
 					]);
+					// A source that was asked for and produced nothing is degraded,
+					// whether it threw (already logged above) or returned empty.
+					if (usesTrendSignals && !trend) degraded.add("serpapi_trends");
 					if (enabled.has("google_shopping") && !market)
 						degraded.add("serpapi_shopping");
 					if (

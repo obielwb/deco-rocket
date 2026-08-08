@@ -1,6 +1,7 @@
 import { app } from "./app.ts";
 import {
 	handleResearchApi,
+	logProviderStatus,
 	startAutomaticResearchScheduler,
 } from "./research-api.ts";
 
@@ -10,6 +11,8 @@ Bun.serve({
 	idleTimeout: 0,
 	hostname: "0.0.0.0",
 	port: PORT,
+	// On Bun the credentials come from process.env, so no platform env is passed
+	// here; a runtime entrypoint forwards its env as the second argument.
 	fetch: async (request) =>
 		(await handleResearchApi(request)) ?? app.fetch(request),
 });
@@ -23,3 +26,4 @@ console.log("");
 console.log(`MCP App: ${baseUrl}/api/mcp`);
 console.log(`Research API: ${baseUrl}/api/research/health`);
 console.log("");
+void logProviderStatus();

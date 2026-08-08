@@ -31,7 +31,9 @@ export function getConfig(env: unknown): State {
 export const defaults = {
 	geo: (c: State) => c.GEO || "BR",
 	lang: (c: State) => c.LANG || "pt-BR",
+	llmProvider: (c: State) => c.LLM_PROVIDER || "openai",
 	anthropicModel: (c: State) => c.ANTHROPIC_MODEL || "claude-sonnet-5",
+	openaiTextModel: (c: State) => c.OPENAI_TEXT_MODEL || "gpt-4.1-mini",
 	imageProvider: (c: State) => c.IMAGE_PROVIDER || "gemini",
 	openaiImageModel: (c: State) => c.OPENAI_IMAGE_MODEL || "gpt-image-2",
 	vtexEnv: (c: State) => c.VTEX_ENVIRONMENT || "vtexcommercestable",

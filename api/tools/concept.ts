@@ -93,7 +93,7 @@ export const productConceptGen = (env: Env) =>
 	createTool({
 		id: "PRODUCT_CONCEPT_GEN",
 		description:
-			"Generate a concrete product concept (name, positioning, specs, target audience, differentiators, suggested price) from a scored market opportunity. Requires ANTHROPIC_API_KEY.",
+			"Generate a concrete product concept (name, positioning, specs, target audience, differentiators, suggested price) from a scored market opportunity. Requires OPENAI_API_KEY (or ANTHROPIC_API_KEY with LLM_PROVIDER=anthropic).",
 		inputSchema: z.object({
 			opportunity: OpportunitySchema,
 			store: z.string().nullable().optional(),
@@ -110,7 +110,7 @@ export const copyGen = (env: Env) =>
 	createTool({
 		id: "COPY_GEN",
 		description:
-			"Generate marketing copy for a product concept: product title, SEO title + meta description, PDP description and 3 ad copy variations. Requires ANTHROPIC_API_KEY.",
+			"Generate marketing copy for a product concept: product title, SEO title + meta description, PDP description and 3 ad copy variations. Requires OPENAI_API_KEY (or ANTHROPIC_API_KEY with LLM_PROVIDER=anthropic).",
 		inputSchema: z.object({
 			concept: ProductConceptSchema,
 			keyword: z.string(),

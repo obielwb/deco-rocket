@@ -2,6 +2,25 @@ export interface FetchOptions extends RequestInit {
 	timeoutMs?: number;
 }
 
+/**
+ * A provider call that reached us but did not produce usable data.
+ *
+ * Providers like SerpApi and DataForSEO answer `200 OK` and put the failure in
+ * the body (an `error` string, a non-`20000` task status). Wrapping both cases
+ * in one error type is what lets the pipeline mark a source as degraded instead
+ * of silently reporting fabricated zeros as if they had been collected.
+ */
+export class ProviderError extends Error {
+	constructor(
+		public readonly provider: string,
+		message: string,
+		public readonly status?: number,
+	) {
+		super(`[${provider}] ${message}`);
+		this.name = "ProviderError";
+	}
+}
+
 /** fetch with a timeout and a helpful error message on non-2xx responses. */
 export async function httpFetch(
 	url: string,

@@ -1,8 +1,41 @@
 import { getConfig } from "../config.ts";
-import { httpJson } from "../lib/http.ts";
+import { httpJson, ProviderError } from "../lib/http.ts";
 import type { KeywordVolume } from "../lib/types.ts";
 
 const BASE = "https://api.dataforseo.com/v3";
+
+/** DataForSEO signals success with 20000 at both the envelope and task level. */
+const OK = 20000;
+
+interface Envelope<T> {
+	status_code?: number;
+	status_message?: string;
+	tasks?: { status_code?: number; status_message?: string; result?: T }[];
+}
+
+/**
+ * DataForSEO answers `200 OK` even when the account is suspended, out of
+ * credits or the task was rejected — the real status lives in the body. Reading
+ * only `tasks[0].result` turns any of those into "every keyword has null
+ * volume", which the report then presents as a successfully collected source.
+ */
+function unwrap<T>(data: Envelope<T>): T | null {
+	if (data.status_code !== OK) {
+		throw new ProviderError(
+			"dataforseo",
+			`${data.status_message ?? "erro desconhecido"} (${data.status_code})`,
+		);
+	}
+	const task = data.tasks?.[0];
+	if (!task) throw new ProviderError("dataforseo", "resposta sem tarefas");
+	if (task.status_code !== OK) {
+		throw new ProviderError(
+			"dataforseo",
+			`${task.status_message ?? "tarefa rejeitada"} (${task.status_code})`,
+		);
+	}
+	return task.result ?? null;
+}
 
 /**
  * DataForSEO Google Ads search volume (Labs / keywords_data). Pay-as-you-go.
@@ -31,17 +64,17 @@ export async function keywordVolume(
 		},
 	];
 
-	const data = await httpJson<{
-		tasks?: {
-			result?: {
+	const data = await httpJson<
+		Envelope<
+			{
 				keyword: string;
 				search_volume?: number | null;
 				competition_index?: number | null;
 				cpc?: number | null;
 				monthly_searches?: { search_volume?: number }[];
-			}[];
-		}[];
-	}>(`${BASE}/keywords_data/google_ads/search_volume/live`, {
+			}[]
+		>
+	>(`${BASE}/keywords_data/google_ads/search_volume/live`, {
 		method: "POST",
 		headers: {
 			authorization: `Basic ${auth}`,
@@ -50,7 +83,7 @@ export async function keywordVolume(
 		body: JSON.stringify(body),
 	});
 
-	const rows = data.tasks?.[0]?.result ?? [];
+	const rows = unwrap(data) ?? [];
 	const byKeyword = new Map(rows.map((r) => [r.keyword.toLowerCase(), r]));
 
 	return keywords.map((kw) => {
@@ -65,4 +98,40 @@ export async function keywordVolume(
 				.slice(-12),
 		};
 	});
+}
+
+/**
+ * Live credential check for the health endpoint. Uses the free `user_data`
+ * endpoint so polling costs nothing; an empty balance is the failure that most
+ * often shows up as "every keyword came back without volume".
+ */
+export async function dataForSeoStatus(
+	env: unknown,
+): Promise<{ ok: boolean; detail?: string; balance?: number }> {
+	const c = getConfig(env);
+	if (!c.DATAFORSEO_LOGIN || !c.DATAFORSEO_PASSWORD) {
+		return { ok: false, detail: "DATAFORSEO_LOGIN/PASSWORD não configurados." };
+	}
+	const auth = btoa(`${c.DATAFORSEO_LOGIN}:${c.DATAFORSEO_PASSWORD}`);
+	try {
+		const data = await httpJson<Envelope<{ money?: { balance?: number } }[]>>(
+			`${BASE}/appendix/user_data`,
+			{
+				headers: { authorization: `Basic ${auth}` },
+			},
+		);
+		const balance = unwrap(data)?.[0]?.money?.balance ?? 0;
+		return balance > 0
+			? { ok: true, balance }
+			: {
+					ok: false,
+					balance,
+					detail: "Saldo do DataForSEO zerado — as consultas não são cobradas.",
+				};
+	} catch (error) {
+		return {
+			ok: false,
+			detail: error instanceof Error ? error.message : "Falha desconhecida",
+		};
+	}
 }
