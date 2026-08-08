@@ -1,0 +1,53 @@
+{
+  "link": {
+    "href": "/feminino",
+    "text": "Explore collection",
+    "layout": {
+      "position": "justify-center"
+    }
+  },
+  "pins": [
+    {
+      "link": "/feminino",
+      "label": "Glasses",
+      "mobile": {
+        "x": 12,
+        "y": 59
+      },
+      "desktop": {
+        "x": 7,
+        "y": 60
+      }
+    },
+    {
+      "link": "/feminino",
+      "label": "Bag",
+      "mobile": {
+        "x": 30,
+        "y": 30
+      },
+      "desktop": {
+        "x": 30,
+        "y": 30
+      }
+    }
+  ],
+  "text": {
+    "layout": {
+      "position": "text-center"
+    },
+    "content": "Your description"
+  },
+  "image": {
+    "mobile": "https://decoims.com/storefront-tanstack/ad9dffc1-9d3d-40a2-a654-861e294f9917/1742560262273-23be366c-fa07-4520-9338-387ce77acabb.png",
+    "altText": "a",
+    "desktop": "https://decoims.com/storefront-tanstack/2aeb1702-7ad2-4bc4-b598-e04ccc020bab/1742560268178-b79dcfc0-45b8-40c4-a3ba-310e66995529.png"
+  },
+  "title": {
+    "layout": {
+      "position": "justify-center"
+    },
+    "content": "Awesome collection "
+  },
+  "__resolveType": "site/sections/Images/ShoppableBanner.tsx"
+}
