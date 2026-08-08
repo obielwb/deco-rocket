@@ -3,37 +3,31 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useMerchant, useMerchantSignOut } from "../../platform/merchant";
 import {
+  type CreativeType,
   deleteRocketProductServerFn,
   deleteRocketReportServerFn,
   getRocketHealthServerFn,
   getRocketLaunchesServerFn,
   getRocketReportsServerFn,
-  launchRocketProductServerFn,
-  refreshRocketReportsServerFn,
-  runRocketResearchServerFn,
-  type CreativeType,
+  getRocketResearchJobsServerFn,
+  type LaunchedProduct,
   type LaunchProductRequest,
+  launchRocketProductServerFn,
   type ProductBrief,
-  type ResearchReport,
+  type ResearchJob,
   type ResearchRequest,
   type ResearchSource,
+  refreshRocketReportsServerFn,
   type SourcePreview,
   type StoredReport,
+  startRocketResearchJobServerFn,
 } from "../../platform/rocket";
 import { DEMO_REPORTS, STORE_COLLECTIONS } from "./demo-data";
 import RocketImage from "./RocketImage";
 
 type View = "overview" | "reports" | "research" | "suppliers";
 type GlyphName =
-  | View
-  | "store"
-  | "logout"
-  | "arrow"
-  | "check"
-  | "spark"
-  | "clock"
-  | "upload"
-  | "trash";
+  View | "store" | "logout" | "arrow" | "check" | "spark" | "clock" | "upload" | "trash";
 
 const NAV_ITEMS: { id: View; label: string }[] = [
   { id: "overview", label: "Visão geral" },
@@ -72,7 +66,12 @@ const SOURCE_OPTIONS: {
     detail: "Demanda, CPC e competição",
     provider: "keywordVolume",
   },
-  { id: "catalog", name: "Catálogo da loja", detail: "Fit e whitespace", provider: "catalog" },
+  {
+    id: "catalog",
+    name: "Catálogo da loja",
+    detail: "Fit e whitespace",
+    provider: "catalog",
+  },
 ];
 
 const PROFILES = [
@@ -81,9 +80,21 @@ const PROFILES = [
     title: "Teen / social media",
     detail: "Cultura, linguagem e consumo de 14 a 24 anos",
   },
-  { id: "Fashion radar", title: "Fashion radar", detail: "Silhuetas, materiais e sinais de moda" },
-  { id: "Performance", title: "Performance", detail: "Dor funcional, inovação e comparativos" },
-  { id: "Evergreen", title: "Evergreen", detail: "Demanda estável e menor risco operacional" },
+  {
+    id: "Fashion radar",
+    title: "Fashion radar",
+    detail: "Silhuetas, materiais e sinais de moda",
+  },
+  {
+    id: "Performance",
+    title: "Performance",
+    detail: "Dor funcional, inovação e comparativos",
+  },
+  {
+    id: "Evergreen",
+    title: "Evergreen",
+    detail: "Demanda estável e menor risco operacional",
+  },
 ];
 
 const CREATIVE_OPTIONS: { id: CreativeType; name: string; format: string }[] = [
@@ -112,6 +123,70 @@ const STORE_VISUAL_REFERENCES = [
 
 const DEFAULT_STORE_STYLE =
   "Pop editorial urbano da storefront: fundos chapados verde-lima ou lilás, módulos geométricos tonais, produto preto em recorte grande, luz frontal de estúdio, contraste alto e espaço negativo para copy.";
+
+const ACTIVE_RESEARCH_JOB_KEY = "rocket-active-research-job";
+
+type CatalogDraft = Omit<LaunchProductRequest, "reportId" | "briefIndex" | "tags">;
+
+function briefCreativeImage(brief: ProductBrief | undefined): string {
+  if (!brief) return "";
+  return (
+    brief.creatives?.find((creative) => creative.type === "product_hero")?.imageUrl ??
+    brief.creatives?.find((creative) => creative.imageUrl)?.imageUrl ??
+    brief.imageUrl ??
+    ""
+  );
+}
+
+function catalogDraftFromBrief(brief: ProductBrief | undefined, collection: string): CatalogDraft {
+  const concept = brief?.concept;
+  return {
+    name: brief?.copy?.productTitle ?? concept?.name ?? brief?.opportunity.keyword ?? "",
+    tagline: concept?.tagline ?? brief?.opportunity.keyword ?? "",
+    description: brief?.copy?.pdpDescription ?? concept?.positioning ?? "",
+    price: concept?.suggestedPrice ?? brief?.sourcing?.suggestedRetailPrice ?? 0,
+    collection,
+    imageUrl: briefCreativeImage(brief),
+  };
+}
+
+function catalogDraftFromProduct(product: LaunchProductRequest): CatalogDraft {
+  return {
+    name: product.name,
+    tagline: product.tagline,
+    description: product.description,
+    price: product.price,
+    collection: product.collection,
+    imageUrl: product.imageUrl,
+  };
+}
+
+function catalogDraftsMatch(left: CatalogDraft, right: CatalogDraft): boolean {
+  return (Object.keys(left) as Array<keyof CatalogDraft>).every((key) => left[key] === right[key]);
+}
+
+function readActiveResearchJobId() {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(ACTIVE_RESEARCH_JOB_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeActiveResearchJobId(jobId: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (jobId) window.localStorage.setItem(ACTIVE_RESEARCH_JOB_KEY, jobId);
+    else window.localStorage.removeItem(ACTIVE_RESEARCH_JOB_KEY);
+  } catch {
+    // Ignore local storage errors and keep the in-memory state working.
+  }
+}
+
+function isActiveResearchJob(job: ResearchJob | null | undefined) {
+  return job?.status === "queued" || job?.status === "running";
+}
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -233,12 +308,10 @@ function dedupeReports(reports: StoredReport[]) {
   );
 }
 
-function formatDateLong(value: Date) {
-  return new Intl.DateTimeFormat("pt-BR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-  }).format(value);
+function dedupeJobs(jobs: ResearchJob[]) {
+  return [...new Map(jobs.map((job) => [job.id, job])).values()].sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt),
+  );
 }
 
 function compactNumber(value: number | null | undefined) {
@@ -316,8 +389,14 @@ function ScoreRing({ score, size = "md" }: { score: number; size?: "sm" | "md" |
   const dimensions = size === "lg" ? "size-32" : size === "sm" ? "size-14" : "size-20";
   return (
     <div
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={score}
       className={cx("relative grid shrink-0 place-items-center rounded-full", dimensions)}
-      style={{ background: `conic-gradient(#0a0a0a ${score * 3.6}deg, #e8e8e5 0)` }}
+      style={{
+        background: `conic-gradient(#0a0a0a ${score * 3.6}deg, #e8e8e5 0)`,
+      }}
       aria-label={`Score ${score} de 100`}
     >
       <div className="absolute inset-[6px] rounded-full bg-white" />
@@ -424,9 +503,7 @@ function Thermometer({ pulse }: { pulse: MarketPulse }) {
           <h2 className="mt-6 max-w-lg text-3xl font-semibold leading-[1.05] tracking-[-.045em] sm:text-4xl">
             {pulse.title}
           </h2>
-          <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/55">
-            {pulse.description}
-          </p>
+          <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/55">{pulse.description}</p>
           <div className="mt-7 flex flex-wrap gap-2">
             {pulse.metrics.map((metric) => (
               <span
@@ -450,9 +527,7 @@ function Thermometer({ pulse }: { pulse: MarketPulse }) {
           </div>
           <div>
             <p className="text-6xl font-semibold tracking-[-.07em]">{pulse.score}</p>
-            <p className="mt-1 text-xs uppercase tracking-[.16em] text-[#b7f34a]">
-              {pulse.status}
-            </p>
+            <p className="mt-1 text-xs uppercase tracking-[.16em] text-[#b7f34a]">{pulse.status}</p>
           </div>
         </div>
       </div>
@@ -680,8 +755,14 @@ function fallbackSourcePreviews(
       summary: "Interesse ao longo do tempo e termos que estão acelerando.",
       metrics: trend
         ? [
-            { label: "Momentum", value: `${trend.momentum >= 0 ? "+" : ""}${trend.momentum}%` },
-            { label: "Sinal", value: trend.isBreakout ? "Breakout" : "Em alta" },
+            {
+              label: "Momentum",
+              value: `${trend.momentum >= 0 ? "+" : ""}${trend.momentum}%`,
+            },
+            {
+              label: "Sinal",
+              value: trend.isBreakout ? "Breakout" : "Em alta",
+            },
           ]
         : [],
       items: (trend?.risingQueries ?? []).slice(0, 3).map((item) => ({
@@ -699,8 +780,14 @@ function fallbackSourcePreviews(
       summary: "Produtos e hooks com potencial social derivados dos sinais de breakout.",
       metrics: trend
         ? [
-            { label: "Sinal viral", value: trend.isBreakout ? "Breakout" : "Em alta" },
-            { label: "Força", value: `${Math.min(100, 50 + trend.momentum)}/100` },
+            {
+              label: "Sinal viral",
+              value: trend.isBreakout ? "Breakout" : "Em alta",
+            },
+            {
+              label: "Força",
+              value: `${Math.min(100, 50 + trend.momentum)}/100`,
+            },
           ]
         : [],
       items: (market?.offers ?? []).slice(0, 3).map((offer) => ({
@@ -723,7 +810,10 @@ function fallbackSourcePreviews(
         ? [
             { label: "Ofertas", value: `${market.competitorCount}` },
             { label: "Preço mediano", value: brl(market.priceMedian) },
-            { label: "Reviews", value: market.totalReviews.toLocaleString("pt-BR") },
+            {
+              label: "Reviews",
+              value: market.totalReviews.toLocaleString("pt-BR"),
+            },
           ]
         : [],
       items: (market?.offers ?? []).slice(0, 4).map((offer) => ({
@@ -776,7 +866,12 @@ function fallbackSourcePreviews(
           ]
         : [],
       items: gap?.sampleMatch
-        ? [{ title: gap.sampleMatch, subtitle: "Produto ou coleção mais próxima" }]
+        ? [
+            {
+              title: gap.sampleMatch,
+              subtitle: "Produto ou coleção mais próxima",
+            },
+          ]
         : [],
     });
   }
@@ -927,8 +1022,9 @@ function ReportDetail({
   canDelete: boolean;
 }) {
   const [briefIndex, setBriefIndex] = useState(0);
-  const [targetCollection, setTargetCollection] = useState(
-    stored.report.config?.collections[0] ?? "Accessories",
+  const defaultCollection = stored.report.config?.collections[0] ?? "Accessories";
+  const [catalogDraft, setCatalogDraft] = useState<CatalogDraft>(() =>
+    catalogDraftFromBrief(stored.report.briefs[0], defaultCollection),
   );
   const queryClient = useQueryClient();
   const launchesQuery = useQuery({
@@ -938,12 +1034,19 @@ function ReportDetail({
   });
   const launchMutation = useMutation({
     mutationFn: (request: LaunchProductRequest) => launchRocketProductServerFn({ data: request }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["rocket-launches"] }),
+    onSuccess: (product) => {
+      queryClient.setQueryData<{ products: LaunchedProduct[] }>(["rocket-launches"], (current) => ({
+        products: [product, ...(current?.products ?? []).filter((item) => item.id !== product.id)],
+      }));
+      void queryClient.invalidateQueries({ queryKey: ["rocket-launches"] });
+    },
   });
   const deleteProductMutation = useMutation({
     mutationFn: (productId: string) => deleteRocketProductServerFn({ data: { productId } }),
     onSuccess: (result) => {
-      queryClient.setQueryData(["rocket-launches"], { products: result.products });
+      queryClient.setQueryData(["rocket-launches"], {
+        products: result.products,
+      });
     },
   });
   const deleteReportMutation = useMutation({
@@ -958,18 +1061,18 @@ function ReportDetail({
     },
   });
   const brief = stored.report.briefs[briefIndex];
-  if (!brief) return <p>Este report não contém oportunidades.</p>;
-  const concept = brief.concept;
-  const creatives = brief.creatives?.length
+  const concept = brief?.concept;
+  const creatives = brief?.creatives?.length
     ? brief.creatives
-    : brief.imageUrl
-      ? [{ type: "product_hero" as const, imageUrl: brief.imageUrl, prompt: "" }]
+    : brief?.imageUrl
+      ? [
+          {
+            type: "product_hero" as const,
+            imageUrl: brief.imageUrl,
+            prompt: "",
+          },
+        ]
       : [];
-  const launchImage =
-    creatives.find((creative) => creative.type === "product_hero")?.imageUrl ??
-    creatives.find((creative) => creative.imageUrl)?.imageUrl ??
-    null;
-  const launchPrice = concept?.suggestedPrice ?? brief.sourcing?.suggestedRetailPrice ?? null;
   const launchedProduct = launchesQuery.data?.products.find(
     (product) => product.reportId === stored.id && product.briefIndex === briefIndex,
   );
@@ -978,31 +1081,47 @@ function ReportDetail({
       ...(stored.report.config?.collections?.length
         ? stored.report.config.collections
         : STORE_COLLECTIONS),
+      catalogDraft.collection,
       ...(launchedProduct ? [launchedProduct.collection] : []),
     ]),
   ];
+  const savedCatalogDraft = launchedProduct
+    ? catalogDraftFromProduct(launchedProduct)
+    : catalogDraftFromBrief(brief, defaultCollection);
+  const hasCatalogChanges = !catalogDraftsMatch(catalogDraft, savedCatalogDraft);
+  const catalogDraftIsValid =
+    catalogDraft.name.trim().length >= 2 &&
+    catalogDraft.tagline.trim().length >= 2 &&
+    catalogDraft.description.trim().length >= 2 &&
+    catalogDraft.collection.trim().length > 0 &&
+    catalogDraft.imageUrl.trim().length > 0 &&
+    catalogDraft.price > 0;
 
   useEffect(() => {
-    if (launchedProduct) setTargetCollection(launchedProduct.collection);
-  }, [launchedProduct?.collection]);
+    setCatalogDraft(
+      launchedProduct
+        ? catalogDraftFromProduct(launchedProduct)
+        : catalogDraftFromBrief(brief, defaultCollection),
+    );
+  }, [brief, defaultCollection, launchedProduct]);
+
+  if (!brief) return <p>Este report não contém oportunidades.</p>;
 
   const linkedLaunchCount =
     launchesQuery.data?.products.filter((product) => product.reportId === stored.id).length ?? 0;
 
   const launch = () => {
-    if (!concept || !launchImage || !launchPrice) return;
+    if (!concept || !catalogDraftIsValid) return;
     launchMutation.mutate({
       reportId: stored.id,
       briefIndex,
-      name: brief.copy?.productTitle ?? concept.name,
-      tagline: concept.tagline,
-      description: brief.copy?.pdpDescription ?? concept.positioning,
-      price: launchPrice,
-      collection: targetCollection,
-      imageUrl: launchImage,
+      ...catalogDraft,
       tags: [...concept.keySpecs, ...concept.differentiators].slice(0, 12),
     });
   };
+
+  const updateCatalogDraft = <Key extends keyof CatalogDraft>(key: Key, value: CatalogDraft[Key]) =>
+    setCatalogDraft((current) => ({ ...current, [key]: value }));
 
   const removeLaunchedProduct = () => {
     if (!launchedProduct) return;
@@ -1178,52 +1297,155 @@ function ReportDetail({
       />
 
       <section className="overflow-hidden rounded-md border border-black/8 bg-[#d9ff45]">
-        <div className="grid gap-6 p-6 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="flex flex-col justify-between gap-5 p-6 sm:flex-row sm:items-start">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-[.14em] text-black/55">
-              Próximo passo
+              Catálogo Rocket
             </p>
             <h2 className="mt-2 text-2xl font-semibold tracking-[-.04em]">
-              Publicar no catalogo Rocket
+              Edite e sincronize o produto
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-black/65">
-              Salva o conceito no catalogo local de validacao e o exibe imediatamente na colecao
-              Rocket Drops. Ele nao cria um produto na Shopify principal.
+              Os campos abaixo são a fonte do card em Rocket Drops. Depois de editar, salve para
+              atualizar a vitrine imediatamente.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:min-w-72">
-            <label className="text-[10px] font-medium uppercase tracking-[.1em] text-black/55">
+          <span
+            className={cx(
+              "w-fit rounded-full px-3 py-1.5 text-xs font-semibold",
+              hasCatalogChanges ? "bg-ink text-white" : "bg-white/70 text-black/65",
+            )}
+          >
+            {hasCatalogChanges ? "Alterações pendentes" : "Catálogo sincronizado"}
+          </span>
+        </div>
+
+        <div className="grid gap-6 border-t border-black/10 bg-white/70 p-6 lg:grid-cols-[220px_1fr]">
+          <div>
+            <div className="aspect-square overflow-hidden rounded-sm border border-black/10 bg-white">
+              <RocketImage
+                src={catalogDraft.imageUrl}
+                alt={catalogDraft.name || "Preview do produto"}
+                className="size-full object-cover"
+              />
+            </div>
+            {creatives.filter((creative) => creative.imageUrl).length > 1 && (
+              <div className="mt-3 flex gap-2">
+                {creatives
+                  .filter((creative) => creative.imageUrl)
+                  .map((creative) => (
+                    <button
+                      key={creative.type}
+                      type="button"
+                      onClick={() => updateCatalogDraft("imageUrl", creative.imageUrl ?? "")}
+                      className={cx(
+                        "size-11 overflow-hidden rounded-xs border bg-white",
+                        catalogDraft.imageUrl === creative.imageUrl
+                          ? "border-ink ring-1 ring-ink"
+                          : "border-black/10",
+                      )}
+                      title={`Usar ${creative.type} no catálogo`}
+                    >
+                      <RocketImage
+                        src={creative.imageUrl}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-xs font-medium text-black/60 sm:col-span-2">
+              Nome do produto
+              <input
+                value={catalogDraft.name}
+                onChange={(event) => updateCatalogDraft("name", event.target.value)}
+                className="mt-1.5 h-11 w-full rounded-sm border border-black/15 bg-white px-3 text-sm text-ink outline-none focus:border-black"
+              />
+            </label>
+            <label className="text-xs font-medium text-black/60">
+              Preço
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={catalogDraft.price || ""}
+                onChange={(event) => updateCatalogDraft("price", Number(event.target.value))}
+                className="mt-1.5 h-11 w-full rounded-sm border border-black/15 bg-white px-3 text-sm text-ink outline-none focus:border-black"
+              />
+            </label>
+            <label className="text-xs font-medium text-black/60">
               Coleção de destino
               <select
-                value={targetCollection}
-                onChange={(event) => setTargetCollection(event.target.value)}
-                className="mt-1.5 h-11 w-full rounded-sm border border-black/20 bg-white px-3 text-sm normal-case tracking-normal outline-none focus:border-black"
+                value={catalogDraft.collection}
+                onChange={(event) => updateCatalogDraft("collection", event.target.value)}
+                className="mt-1.5 h-11 w-full rounded-sm border border-black/15 bg-white px-3 text-sm text-ink outline-none focus:border-black"
               >
                 {collectionOptions.map((collection) => (
                   <option key={collection}>{collection}</option>
                 ))}
               </select>
             </label>
-            <button
-              type="button"
-              onClick={launch}
-              disabled={!concept || !launchImage || !launchPrice || launchMutation.isPending}
-              className="tap-scale flex h-11 items-center justify-center gap-2 rounded-sm bg-ink px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <Glyph name="store" size={17} />
-              {launchMutation.isPending
-                ? "Salvando..."
-                : launchedProduct
-                  ? "Atualizar no catalogo Rocket"
-                  : "Salvar no catalogo Rocket"}
-            </button>
+            <label className="text-xs font-medium text-black/60 sm:col-span-2">
+              Chamada curta
+              <input
+                value={catalogDraft.tagline}
+                onChange={(event) => updateCatalogDraft("tagline", event.target.value)}
+                className="mt-1.5 h-11 w-full rounded-sm border border-black/15 bg-white px-3 text-sm text-ink outline-none focus:border-black"
+              />
+            </label>
+            <label className="text-xs font-medium text-black/60 sm:col-span-2">
+              Descrição
+              <textarea
+                rows={4}
+                value={catalogDraft.description}
+                onChange={(event) => updateCatalogDraft("description", event.target.value)}
+                className="mt-1.5 w-full resize-y rounded-sm border border-black/15 bg-white p-3 text-sm leading-relaxed text-ink outline-none focus:border-black"
+              />
+            </label>
+            <label className="text-xs font-medium text-black/60 sm:col-span-2">
+              URL da imagem
+              <input
+                value={catalogDraft.imageUrl}
+                onChange={(event) => updateCatalogDraft("imageUrl", event.target.value)}
+                className="mt-1.5 h-11 w-full rounded-sm border border-black/15 bg-white px-3 text-xs text-ink outline-none focus:border-black"
+              />
+            </label>
+            <div className="flex flex-col gap-3 border-t border-black/10 pt-4 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-black/55">
+                {launchedProduct
+                  ? `Última sincronização: ${formatDate(launchedProduct.updatedAt)}`
+                  : "Este produto ainda não está publicado em Rocket Drops."}
+              </p>
+              <button
+                type="button"
+                onClick={launch}
+                disabled={
+                  !concept ||
+                  !catalogDraftIsValid ||
+                  launchMutation.isPending ||
+                  Boolean(launchedProduct && !hasCatalogChanges)
+                }
+                className="tap-scale flex h-11 items-center justify-center gap-2 rounded-sm bg-ink px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <Glyph name="store" size={17} />
+                {launchMutation.isPending
+                  ? "Sincronizando..."
+                  : launchedProduct
+                    ? "Salvar e sincronizar"
+                    : "Publicar em Rocket Drops"}
+              </button>
+            </div>
           </div>
         </div>
-        {(launchMutation.isSuccess || launchedProduct) && (
+
+        {launchedProduct && !hasCatalogChanges && (
           <div className="flex flex-col justify-between gap-3 border-t border-black/10 bg-white/55 px-6 py-4 sm:flex-row sm:items-center">
             <p className="text-sm font-medium">
-              Produto salvo no catalogo Rocket em{" "}
-              {launchMutation.data?.collection ?? launchedProduct?.collection}.
+              Produto sincronizado com Rocket Drops em {launchedProduct.collection}.
             </p>
             <Link
               to="/collections/rocket-launches"
@@ -1456,11 +1678,20 @@ function ToggleCard({
 
 function ResearchWizard({
   health,
-  onCreated,
+  activeJob,
+  reports,
+  onJobStarted,
+  onJobCleared,
+  openReport,
 }: {
   health: Awaited<ReturnType<typeof getRocketHealthServerFn>> | undefined;
-  onCreated: (report: StoredReport) => void;
+  activeJob: ResearchJob | null;
+  reports: StoredReport[];
+  onJobStarted: (job: ResearchJob) => void;
+  onJobCleared: () => void;
+  openReport: (report: StoredReport) => void;
 }) {
+  const queryClient = useQueryClient();
   const [step, setStep] = useState(0);
   const [seed, setSeed] = useState("acessórios urbanos funcionais");
   const [profile, setProfile] = useState("Teen / social media");
@@ -1480,9 +1711,17 @@ function ResearchWizard({
   const [referenceImages, setReferenceImages] = useState<string[]>(
     STORE_VISUAL_REFERENCES.map((reference) => reference.url),
   );
+  const completedReport = activeJob?.reportId
+    ? (reports.find((report) => report.id === activeJob.reportId) ?? null)
+    : null;
+  useEffect(() => {
+    if (activeJob?.status === "succeeded") {
+      void queryClient.invalidateQueries({ queryKey: ["rocket-reports"] });
+    }
+  }, [activeJob?.status, queryClient]);
   const mutation = useMutation({
-    mutationFn: (request: ResearchRequest) => runRocketResearchServerFn({ data: request }),
-    onSuccess: onCreated,
+    mutationFn: (request: ResearchRequest) => startRocketResearchJobServerFn({ data: request }),
+    onSuccess: onJobStarted,
   });
   const toggle = <T,>(value: T, list: T[], update: (next: T[]) => void) =>
     update(list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
@@ -1508,6 +1747,111 @@ function ResearchWizard({
       maxCandidates: 6,
       mode: "manual",
     });
+
+  if (activeJob) {
+    const running = isActiveResearchJob(activeJob);
+    const progress = Math.max(activeJob.progress.percent, 3);
+    const statusTone =
+      activeJob.status === "succeeded"
+        ? "good"
+        : activeJob.status === "failed"
+          ? "warm"
+          : "neutral";
+    const statusLabel =
+      activeJob.status === "queued"
+        ? "Na fila"
+        : activeJob.status === "running"
+          ? "Em andamento"
+          : activeJob.status === "succeeded"
+            ? "Concluida"
+            : "Falhou";
+
+    return (
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-8">
+          <p className="text-xs font-medium uppercase tracking-[.16em] text-muted">
+            Pesquisa certeira
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-.045em]">
+            {running ? "A Rocket segue pesquisando em background" : "Acompanhe a ultima execucao"}
+          </h1>
+          <p className="mt-2 text-sm text-muted">
+            {running
+              ? "Voce pode sair desta tela e voltar depois. O backend continua executando a pesquisa e o progresso reaparece aqui."
+              : "A execucao terminou e ficou salva para voce retomar daqui sem perder o contexto."}
+          </p>
+        </div>
+        <section className="rounded-md border border-black/8 bg-white p-5 sm:p-7">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Pill tone={statusTone}>{statusLabel}</Pill>
+            <span className="text-xs font-medium text-muted">{progress}%</span>
+          </div>
+          <h2 className="mt-5 text-2xl font-semibold tracking-[-.04em]">
+            {activeJob.progress.label}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted">{activeJob.progress.detail}</p>
+          <div className="mt-6 h-2 overflow-hidden rounded-full bg-gray-200">
+            <div
+              className="h-full rounded-full bg-ink transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            {[
+              ["Tema", activeJob.request.seed],
+              ["Etapa", activeJob.progress.label],
+              ["Atualizado", formatDate(activeJob.updatedAt)],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-sm border border-black/8 bg-[#f7f6f1] p-4">
+                <p className="text-xs text-muted">{label}</p>
+                <p className="mt-2 text-sm font-medium">{value}</p>
+              </div>
+            ))}
+          </div>
+          {activeJob.error && (
+            <p className="mt-5 rounded-sm bg-red-50 p-4 text-sm text-red-700">{activeJob.error}</p>
+          )}
+          {running && (
+            <p className="mt-5 text-xs leading-relaxed text-muted">
+              Enquanto esta execucao estiver ativa, a Rocket continua consultando sinais, montando
+              oportunidades e gerando o report no backend.
+            </p>
+          )}
+          <div className="mt-6 flex flex-wrap gap-2">
+            {completedReport ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onJobCleared();
+                  openReport(completedReport);
+                }}
+                className="tap-scale rounded-sm bg-ink px-5 py-2.5 text-sm font-medium text-white"
+              >
+                Abrir report
+              </button>
+            ) : activeJob.status === "succeeded" ? (
+              <button
+                type="button"
+                disabled
+                className="rounded-sm border border-black/12 bg-white px-5 py-2.5 text-sm text-muted"
+              >
+                Sincronizando report...
+              </button>
+            ) : null}
+            {(activeJob.status === "succeeded" || activeJob.status === "failed") && (
+              <button
+                type="button"
+                onClick={onJobCleared}
+                className="rounded-sm border border-black/12 bg-white px-5 py-2.5 text-sm font-medium"
+              >
+                {activeJob.status === "failed" ? "Tentar novamente" : "Nova pesquisa"}
+              </button>
+            )}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   if (mutation.isPending)
     return (
@@ -1871,12 +2215,42 @@ function buildMockSupplierRows(brief?: ProductBrief): SupplierRow[] {
   const retail = brief?.concept?.suggestedPrice ?? brief?.sourcing?.suggestedRetailPrice ?? 179;
   const baseCost = Math.max(28, Math.round(retail * 0.36));
   const variants = [
-    { supplier: "Oficina Aurora", cost: -8, moq: 60, leadTime: 14, capacity: 420 },
-    { supplier: "Polo Horizonte", cost: -3, moq: 120, leadTime: 18, capacity: 950 },
-    { supplier: "Fabrica Prisma", cost: 0, moq: 180, leadTime: 21, capacity: 1500 },
+    {
+      supplier: "Oficina Aurora",
+      cost: -8,
+      moq: 60,
+      leadTime: 14,
+      capacity: 420,
+    },
+    {
+      supplier: "Polo Horizonte",
+      cost: -3,
+      moq: 120,
+      leadTime: 18,
+      capacity: 950,
+    },
+    {
+      supplier: "Fabrica Prisma",
+      cost: 0,
+      moq: 180,
+      leadTime: 21,
+      capacity: 1500,
+    },
     { supplier: "Studio Norte", cost: 5, moq: 90, leadTime: 12, capacity: 380 },
-    { supplier: "Linha Modular", cost: 9, moq: 40, leadTime: 28, capacity: 260 },
-    { supplier: "Atlas Supply", cost: 3, moq: 300, leadTime: 35, capacity: 2800 },
+    {
+      supplier: "Linha Modular",
+      cost: 9,
+      moq: 40,
+      leadTime: 28,
+      capacity: 260,
+    },
+    {
+      supplier: "Atlas Supply",
+      cost: 3,
+      moq: 300,
+      leadTime: 35,
+      capacity: 2800,
+    },
   ];
 
   return variants.map((variant, index) => ({
@@ -1900,7 +2274,9 @@ function rowsToSupplierCsv(rows: SupplierRow[]): string {
 }
 
 function downloadSupplierCsv(rows: SupplierRow[], fileName: string) {
-  const blob = new Blob([rowsToSupplierCsv(rows)], { type: "text/csv;charset=utf-8" });
+  const blob = new Blob([rowsToSupplierCsv(rows)], {
+    type: "text/csv;charset=utf-8",
+  });
   const href = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = href;
@@ -1927,7 +2303,8 @@ function Suppliers({ reports }: { reports: StoredReport[] }) {
   };
   const generateMockRows = () => {
     const generated = buildMockSupplierRows(opportunity);
-    const productName = opportunity?.concept?.name ?? opportunity?.opportunity.keyword ?? "produto-piloto";
+    const productName =
+      opportunity?.concept?.name ?? opportunity?.opportunity.keyword ?? "produto-piloto";
     setFileName(`fornecedores-ficticios-${slugify(productName) || "rocket"}.csv`);
     setRows(generated);
   };
@@ -1999,8 +2376,8 @@ function Suppliers({ reports }: { reports: StoredReport[] }) {
       </div>
       {rows.length === 0 && (
         <p className="mt-3 text-xs leading-relaxed text-muted">
-          Use o modelo acima ou gere um cenario ficticio baseado na oportunidade mais forte do
-          radar para testar MOQ, prazo, margem e capacidade.
+          Use o modelo acima ou gere um cenario ficticio baseado na oportunidade mais forte do radar
+          para testar MOQ, prazo, margem e capacidade.
         </p>
       )}
       {rows.length > 0 && (
@@ -2070,33 +2447,73 @@ function Suppliers({ reports }: { reports: StoredReport[] }) {
 export default function RocketApp() {
   const [view, setView] = useState<View>("overview");
   const [selectedReport, setSelectedReport] = useState<StoredReport | null>(null);
+  const [activeResearchJobId, setActiveResearchJobId] = useState<string | null>(null);
   const { merchant } = useMerchant();
   const signOut = useMerchantSignOut();
   const queryClient = useQueryClient();
+  useEffect(() => {
+    setActiveResearchJobId(readActiveResearchJobId());
+  }, []);
   const healthQuery = useQuery({
     queryKey: ["rocket-health"],
     queryFn: () => getRocketHealthServerFn(),
     refetchInterval: 60_000,
+  });
+  const jobsQuery = useQuery({
+    queryKey: ["rocket-research-jobs"],
+    queryFn: () => getRocketResearchJobsServerFn(),
+    staleTime: 0,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
   });
   const reportsQuery = useQuery({
     queryKey: ["rocket-reports"],
     queryFn: () => getRocketReportsServerFn(),
     staleTime: 30_000,
   });
+  const researchJobs = dedupeJobs(jobsQuery.data?.jobs ?? []);
+  const trackedResearchJob = activeResearchJobId
+    ? (researchJobs.find((job) => job.id === activeResearchJobId) ?? null)
+    : null;
+  const activeResearchJob =
+    trackedResearchJob ?? researchJobs.find((job) => isActiveResearchJob(job)) ?? null;
+  const hasRunningResearch = isActiveResearchJob(activeResearchJob);
   const backendReports = reportsQuery.data?.reports ?? [];
   const reports = dedupeReports(backendReports.length > 0 ? backendReports : DEMO_REPORTS);
   const persistedReportIds = new Set(backendReports.map((report) => report.id));
+
+  useEffect(() => {
+    if (activeResearchJob?.id && activeResearchJob.id !== activeResearchJobId) {
+      setActiveResearchJobId(activeResearchJob.id);
+      writeActiveResearchJobId(activeResearchJob.id);
+    }
+  }, [activeResearchJob?.id, activeResearchJobId]);
+
+  useEffect(() => {
+    if (!jobsQuery.isFetched || !activeResearchJobId) return;
+    if (!researchJobs.some((job) => job.id === activeResearchJobId)) {
+      setActiveResearchJobId(null);
+      writeActiveResearchJobId(null);
+    }
+  }, [jobsQuery.isFetched, activeResearchJobId, researchJobs]);
+
   const openReport = (report: StoredReport) => {
     setSelectedReport(report);
     setView("reports");
   };
-  const created = (report: StoredReport) => {
-    queryClient.setQueryData(["rocket-reports"], {
-      reports: dedupeReports([report, ...backendReports]),
-      connected: true,
-    });
-    queryClient.invalidateQueries({ queryKey: ["rocket-reports"] });
-    openReport(report);
+  const rememberResearchJob = (job: ResearchJob) => {
+    setActiveResearchJobId(job.id);
+    writeActiveResearchJobId(job.id);
+    queryClient.setQueryData(
+      ["rocket-research-jobs"],
+      (current: { jobs: ResearchJob[] } | undefined) => ({
+        jobs: dedupeJobs([job, ...(current?.jobs ?? [])]),
+      }),
+    );
+  };
+  const clearResearchJob = () => {
+    setActiveResearchJobId(null);
+    writeActiveResearchJobId(null);
   };
 
   return (
@@ -2134,6 +2551,16 @@ export default function RocketApp() {
                   )}
                 >
                   {reports.length}
+                </span>
+              )}
+              {item.id === "research" && hasRunningResearch && (
+                <span
+                  className={cx(
+                    "ml-auto rounded-full px-2 py-0.5 text-[10px]",
+                    view === item.id ? "bg-white/15" : "bg-[#eef7de] text-[#355500]",
+                  )}
+                >
+                  ativo
                 </span>
               )}
             </button>
@@ -2178,6 +2605,7 @@ export default function RocketApp() {
               )}
             >
               {item.label}
+              {item.id === "research" && hasRunningResearch ? " · ativo" : ""}
             </button>
           ))}
         </nav>
@@ -2198,7 +2626,16 @@ export default function RocketApp() {
               persistedReportIds={persistedReportIds}
             />
           )}
-          {view === "research" && <ResearchWizard health={healthQuery.data} onCreated={created} />}
+          {view === "research" && (
+            <ResearchWizard
+              health={healthQuery.data}
+              activeJob={activeResearchJob}
+              reports={reports}
+              onJobStarted={rememberResearchJob}
+              onJobCleared={clearResearchJob}
+              openReport={openReport}
+            />
+          )}
           {view === "suppliers" && <Suppliers reports={reports} />}
         </main>
       </div>

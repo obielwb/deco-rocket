@@ -28,6 +28,7 @@ export interface LaunchedProduct extends LaunchProductRequest {
 
 const catalogFile = join(import.meta.dir, "../dist/launched-products.json");
 let loaded = false;
+let loadPromise: Promise<void> | null = null;
 const products = new Map<string, LaunchedProduct>();
 
 function slug(value: string): string {
@@ -44,9 +45,7 @@ function productId(input: LaunchProductRequest): string {
 	return `rocket-${slug(input.reportId)}-${input.briefIndex}`;
 }
 
-async function load(): Promise<void> {
-	if (loaded) return;
-	loaded = true;
+async function hydrate(): Promise<void> {
 	try {
 		const stored = JSON.parse(
 			await readFile(catalogFile, "utf8"),
@@ -66,6 +65,21 @@ async function load(): Promise<void> {
 	}
 }
 
+async function load(): Promise<void> {
+	if (loaded) return;
+	if (!loadPromise) {
+		loadPromise = hydrate()
+			.then(() => {
+				loaded = true;
+			})
+			.catch((error) => {
+				loadPromise = null;
+				throw error;
+			});
+	}
+	await loadPromise;
+}
+
 async function persist(): Promise<void> {
 	await mkdir(join(import.meta.dir, "../dist"), { recursive: true });
 	await writeFile(catalogFile, JSON.stringify([...products.values()], null, 2));
@@ -78,7 +92,9 @@ export async function listLaunchedProducts(): Promise<LaunchedProduct[]> {
 	);
 }
 
-export async function deleteLaunchedProduct(productId: string): Promise<boolean> {
+export async function deleteLaunchedProduct(
+	productId: string,
+): Promise<boolean> {
 	await load();
 	const deleted = products.delete(productId);
 	if (deleted) await persist();

@@ -30,7 +30,12 @@ export interface SourcePreview {
   status: "collected" | "estimated" | "unavailable";
   summary: string;
   metrics: Array<{ label: string; value: string }>;
-  items: Array<{ title: string; subtitle?: string; image?: string; link?: string }>;
+  items: Array<{
+    title: string;
+    subtitle?: string;
+    image?: string;
+    link?: string;
+  }>;
   note?: string;
 }
 
@@ -77,7 +82,11 @@ export interface ProductBrief {
       avgRating: number | null;
       totalReviews: number;
     } | null;
-    gap?: { inCatalog: boolean; catalogMatches: number; sampleMatch?: string } | null;
+    gap?: {
+      inCatalog: boolean;
+      catalogMatches: number;
+      sampleMatch?: string;
+    } | null;
   };
   concept?: {
     name: string;
@@ -145,6 +154,31 @@ export interface StoredReport {
   report: ResearchReport;
 }
 
+export type ResearchJobStatus = "queued" | "running" | "succeeded" | "failed";
+export type ResearchJobStep =
+  "queued" | "expanding" | "signals" | "ranking" | "briefs" | "summary" | "completed" | "failed";
+
+export interface ResearchJobProgress {
+  step: ResearchJobStep;
+  label: string;
+  detail: string;
+  percent: number;
+}
+
+export interface ResearchJob {
+  id: string;
+  mode: "manual" | "automatic";
+  status: ResearchJobStatus;
+  request: Omit<ResearchRequest, "mode">;
+  progress: ResearchJobProgress;
+  createdAt: string;
+  updatedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  reportId: string | null;
+  error: string | null;
+}
+
 export interface RefreshReportsResult {
   updated: number;
   reports: StoredReport[];
@@ -185,5 +219,6 @@ export interface ProviderHealth {
     >
   >;
   reportCount: number;
+  activeJobs?: number;
   error?: string;
 }
