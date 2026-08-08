@@ -14,6 +14,11 @@ export async function generateConcept(
 	env: unknown,
 	opportunity: Opportunity,
 	store?: string | null,
+	context?: {
+		profile?: string | null;
+		audience?: string | null;
+		collections?: string[];
+	},
 ): Promise<ProductConcept> {
 	const o = opportunity;
 	const priceHint = o.market?.priceMedian ?? o.market?.priceMin ?? null;
@@ -24,6 +29,9 @@ export async function generateConcept(
 
 Palavra-chave/nicho: ${o.keyword}
 Loja: ${store ?? "loja de e-commerce brasileira"}
+Perfil de pesquisa: ${context?.profile ?? "geral"}
+Público desejado: ${context?.audience ?? "a definir com os sinais de mercado"}
+Coleções relacionadas da loja: ${context?.collections?.join(", ") || "nenhuma selecionada"}
 Score de oportunidade: ${o.score}/100 (${o.rationale})
 Faixa de preço de mercado: ${priceHint ? `~R$${priceHint}` : "desconhecida"}
 Concorrentes observados: ${o.market?.competitorCount ?? "?"}

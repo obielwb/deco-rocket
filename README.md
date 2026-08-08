@@ -114,7 +114,7 @@ prompt `research_product`) — o relatório aparece na UI interativa.
 | SerpApi | `SERPAPI_KEY` | Google Trends + Shopping |
 | DataForSEO | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | volume de busca |
 | Anthropic | `ANTHROPIC_API_KEY` (`ANTHROPIC_MODEL`) | conceito + copy |
-| Imagem | `GEMINI_API_KEY` **ou** `OPENAI_API_KEY` (`IMAGE_PROVIDER`) | imagem hero |
+| Imagem | `GEMINI_API_KEY` **ou** `OPENAI_API_KEY` (`IMAGE_PROVIDER`, `OPENAI_IMAGE_MODEL`) | criativos com referências visuais da loja |
 | VTEX | `VTEX_ACCOUNT` / `VTEX_APP_KEY` / `VTEX_APP_TOKEN` | catálogo / whitespace |
 | Resend | `RESEND_API_KEY` / `RFQ_FROM_EMAIL` (`RFQ_WEBHOOK_SECRET`) | RFQ Agent (envio + inbound) |
 

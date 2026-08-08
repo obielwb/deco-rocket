@@ -163,6 +163,63 @@ export const CopySchema = z.object({
 });
 export type Copy = z.infer<typeof CopySchema>;
 
+export const ResearchSourceSchema = z.enum([
+	"google_trends",
+	"google_shopping",
+	"keyword_volume",
+	"social_viral",
+	"catalog",
+]);
+export type ResearchSource = z.infer<typeof ResearchSourceSchema>;
+
+export const CreativeTypeSchema = z.enum([
+	"product_hero",
+	"social_ad",
+	"collection_banner",
+]);
+export type CreativeType = z.infer<typeof CreativeTypeSchema>;
+
+export const CreativeAssetSchema = z.object({
+	type: CreativeTypeSchema,
+	imageUrl: z.string().nullable().default(null),
+	prompt: z.string(),
+});
+export type CreativeAsset = z.infer<typeof CreativeAssetSchema>;
+
+export const SourcePreviewSchema = z.object({
+	source: ResearchSourceSchema,
+	label: z.string(),
+	provider: z.string(),
+	status: z.enum(["collected", "estimated", "unavailable"]),
+	summary: z.string(),
+	metrics: z
+		.array(z.object({ label: z.string(), value: z.string() }))
+		.default([]),
+	items: z
+		.array(
+			z.object({
+				title: z.string(),
+				subtitle: z.string().optional(),
+				image: z.string().optional(),
+				link: z.string().optional(),
+			}),
+		)
+		.default([]),
+	note: z.string().optional(),
+});
+export type SourcePreview = z.infer<typeof SourcePreviewSchema>;
+
+export const ResearchConfigSchema = z.object({
+	profile: z.string().nullable().default(null),
+	audience: z.string().nullable().default(null),
+	sources: z.array(ResearchSourceSchema).default([]),
+	collections: z.array(z.string()).default([]),
+	creativeTypes: z.array(CreativeTypeSchema).default([]),
+	storeStyle: z.string().nullable().default(null),
+	referenceImages: z.array(z.string().url()).max(3).default([]),
+});
+export type ResearchConfig = z.infer<typeof ResearchConfigSchema>;
+
 export const ProductBriefSchema = z.object({
 	opportunity: OpportunitySchema,
 	concept: ProductConceptSchema.nullable().default(null),
@@ -170,6 +227,8 @@ export const ProductBriefSchema = z.object({
 	sourcing: SourcingSchema.nullable().default(null),
 	imageUrl: z.string().nullable().default(null),
 	imagePrompt: z.string().nullable().default(null),
+	creatives: z.array(CreativeAssetSchema).default([]),
+	sourcePreviews: z.array(SourcePreviewSchema).default([]),
 });
 export type ProductBrief = z.infer<typeof ProductBriefSchema>;
 
@@ -181,5 +240,6 @@ export const ReportSchema = z.object({
 	summary: z.string().default(""),
 	briefs: z.array(ProductBriefSchema).default([]),
 	degraded: z.array(z.string()).default([]),
+	config: ResearchConfigSchema.optional(),
 });
 export type Report = z.infer<typeof ReportSchema>;

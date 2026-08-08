@@ -36,7 +36,17 @@ describe("tool registry", () => {
 
 describe("RESEARCH_RUN graceful degradation", () => {
 	test("returns a schema-valid Report even with no credentials", async () => {
-		const env = makeEnv();
+		// Empty values intentionally shadow Bun's auto-loaded local .env.
+		const env = makeEnv({
+			SERPAPI_KEY: "",
+			DATAFORSEO_LOGIN: "",
+			DATAFORSEO_PASSWORD: "",
+			ANTHROPIC_API_KEY: "",
+			GEMINI_API_KEY: "",
+			OPENAI_API_KEY: "",
+			OPENAI_TEXT_MODEL: "",
+			VTEX_ACCOUNT: "",
+		});
 		const tool = researchRun(env);
 		const result = await tool.execute({
 			context: { seed: "garrafa térmica", topN: 1, maxCandidates: 2 },
@@ -58,6 +68,7 @@ describe("RESEARCH_RUN integration (requires SERPAPI_KEY)", () => {
 		async () => {
 			const env = makeEnv({
 				SERPAPI_KEY: process.env.SERPAPI_KEY as string,
+				OPENAI_API_KEY: "",
 				...(process.env.ANTHROPIC_API_KEY
 					? { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY }
 					: {}),
