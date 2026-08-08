@@ -14,7 +14,10 @@ export default function RocketCollection() {
   const launches = useQuery({
     queryKey: ["rocket-launches"],
     queryFn: () => getRocketLaunchesServerFn(),
-    staleTime: 10_000,
+    staleTime: 0,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: "always",
   });
   const products = launches.data?.products ?? [];
   const collections = ["Todas", ...new Set(products.map((product) => product.collection))];

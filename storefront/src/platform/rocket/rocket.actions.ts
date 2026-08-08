@@ -6,6 +6,7 @@ import type {
   LaunchProductRequest,
   ProviderHealth,
   RefreshReportsResult,
+  ResearchJob,
   ResearchRequest,
   StoredReport,
 } from "./rocket.types";
@@ -25,39 +26,41 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return payload;
 }
 
-export const getRocketHealthServerFn = createServerFn({ method: "GET" }).handler(
-  async (): Promise<ProviderHealth> => {
-    try {
-      const health = await fetchJson<Omit<ProviderHealth, "connected">>("/api/research/health");
-      return { ...health, connected: true };
-    } catch (error) {
-      return {
-        ok: false,
-        connected: false,
-        providers: {},
-        reportCount: 0,
-        error: error instanceof Error ? error.message : "Research API indisponível.",
-      };
-    }
-  },
-);
+export const getRocketHealthServerFn = createServerFn({
+  method: "GET",
+}).handler(async (): Promise<ProviderHealth> => {
+  try {
+    const health = await fetchJson<Omit<ProviderHealth, "connected">>("/api/research/health");
+    return { ...health, connected: true };
+  } catch (error) {
+    return {
+      ok: false,
+      connected: false,
+      providers: {},
+      reportCount: 0,
+      error: error instanceof Error ? error.message : "Research API indisponível.",
+    };
+  }
+});
 
-export const getRocketReportsServerFn = createServerFn({ method: "GET" }).handler(
-  async (): Promise<{ reports: StoredReport[]; connected: boolean }> => {
-    try {
-      const result = await fetchJson<{ reports: StoredReport[] }>("/api/research/reports");
-      return { reports: result.reports, connected: true };
-    } catch {
-      return { reports: [], connected: false };
-    }
-  },
-);
+export const getRocketReportsServerFn = createServerFn({
+  method: "GET",
+}).handler(async (): Promise<{ reports: StoredReport[]; connected: boolean }> => {
+  try {
+    const result = await fetchJson<{ reports: StoredReport[] }>("/api/research/reports");
+    return { reports: result.reports, connected: true };
+  } catch {
+    return { reports: [], connected: false };
+  }
+});
 
-export const refreshRocketReportsServerFn = createServerFn({ method: "POST" }).handler(
-  async (): Promise<RefreshReportsResult> => {
-    return fetchJson<RefreshReportsResult>("/api/research/reports/refresh", { method: "POST" });
-  },
-);
+export const refreshRocketReportsServerFn = createServerFn({
+  method: "POST",
+}).handler(async (): Promise<RefreshReportsResult> => {
+  return fetchJson<RefreshReportsResult>("/api/research/reports/refresh", {
+    method: "POST",
+  });
+});
 
 export const runRocketResearchServerFn = createServerFn({ method: "POST" })
   .inputValidator((input: ResearchRequest) => input)
@@ -69,11 +72,27 @@ export const runRocketResearchServerFn = createServerFn({ method: "POST" })
     });
   });
 
-export const getRocketLaunchesServerFn = createServerFn({ method: "GET" }).handler(
-  async (): Promise<{ products: LaunchedProduct[] }> => {
-    return fetchJson<{ products: LaunchedProduct[] }>("/api/research/launches");
-  },
-);
+export const getRocketResearchJobsServerFn = createServerFn({
+  method: "GET",
+}).handler(async (): Promise<{ jobs: ResearchJob[] }> => {
+  return fetchJson<{ jobs: ResearchJob[] }>("/api/research/jobs?mode=manual");
+});
+
+export const startRocketResearchJobServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: ResearchRequest) => input)
+  .handler(async ({ data }): Promise<ResearchJob> => {
+    return fetchJson<ResearchJob>("/api/research/jobs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  });
+
+export const getRocketLaunchesServerFn = createServerFn({
+  method: "GET",
+}).handler(async (): Promise<{ products: LaunchedProduct[] }> => {
+  return fetchJson<{ products: LaunchedProduct[] }>("/api/research/launches");
+});
 
 export const launchRocketProductServerFn = createServerFn({ method: "POST" })
   .inputValidator((input: LaunchProductRequest) => input)
