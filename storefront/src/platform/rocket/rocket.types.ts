@@ -205,6 +205,19 @@ export interface ProviderHealth {
     nextRunAt: string | null;
   };
   providers: Partial<Record<string, boolean>>;
+  /** Why a paid provider is not usable: bad key, exhausted quota, empty balance. */
+  providerDetails?: Partial<
+    Record<
+      "serpapi" | "dataforseo",
+      {
+        configured: boolean;
+        ok: boolean;
+        searchesLeft?: number;
+        balance?: number;
+        error?: string;
+      }
+    >
+  >;
   reportCount: number;
   activeJobs?: number;
   error?: string;

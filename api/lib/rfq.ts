@@ -1,5 +1,4 @@
-import { completeJson } from "../clients/anthropic.ts";
-import { getConfig } from "../config.ts";
+import { completeJson, hasLlmCredential } from "../clients/anthropic.ts";
 import type { RfqTier, SupplierQuote } from "./types.ts";
 
 export interface BuildRfqArgs {
@@ -96,16 +95,16 @@ export function heuristicParse(text: string): SupplierQuote {
 }
 
 /**
- * Extract a structured supplier quote from a reply. Uses Claude when
- * ANTHROPIC_API_KEY is set; otherwise (or on failure) falls back to the
- * deterministic heuristic so the webhook and tests work offline.
+ * Extract a structured supplier quote from a reply. Uses whichever LLM provider
+ * is configured; without any credential (or on failure) falls back to the
+ * deterministic heuristic so the webhook and tests work offline. Gating this on
+ * ANTHROPIC_API_KEY alone silently skipped the LLM on OpenAI-only setups.
  */
 export async function parseQuote(
 	env: unknown,
 	text: string,
 ): Promise<SupplierQuote> {
-	const c = getConfig(env);
-	if (!c.ANTHROPIC_API_KEY) return heuristicParse(text);
+	if (!hasLlmCredential(env)) return heuristicParse(text);
 
 	try {
 		const parsed = await completeJson<Omit<SupplierQuote, "parsedAt">>(env, {

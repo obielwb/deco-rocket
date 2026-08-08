@@ -291,6 +291,17 @@ function brl(value: number | null | undefined) {
       });
 }
 
+/** CPC is usually under R$ 2 — rounding to whole reais shows every bid as R$ 0. */
+function brlCents(value: number | null | undefined) {
+  return value == null
+    ? "—"
+    : value.toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+        minimumFractionDigits: 2,
+      });
+}
+
 function dedupeReports(reports: StoredReport[]) {
   return [...new Map(reports.map((item) => [item.id, item])).values()].sort((a, b) =>
     b.report.generatedAt.localeCompare(a.report.generatedAt),
@@ -524,6 +535,59 @@ function Thermometer({ pulse }: { pulse: MarketPulse }) {
   );
 }
 
+/**
+ * The research API being unreachable used to look identical to a real report:
+ * the fetch failed, demo reports were substituted, and nothing said so. Say it
+ * loudly instead — including *why* a provider is unusable, so an exhausted
+ * quota or a rejected key is readable here rather than only in the server log.
+ */
+function BackendStatusBanner({
+  health,
+}: {
+  health: Awaited<ReturnType<typeof getRocketHealthServerFn>> | undefined;
+}) {
+  if (!health) return null;
+
+  if (!health.connected) {
+    return (
+      <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm">
+        <p className="font-semibold text-amber-900">
+          Backend de pesquisa offline — exibindo dados de demonstração
+        </p>
+        <p className="mt-1 leading-relaxed text-amber-800">
+          Nenhum report abaixo vem de uma consulta real: as fontes não foram acionadas. Suba a API
+          (<code className="font-mono">bun run dev:api</code>) ou aponte{" "}
+          <code className="font-mono">DECO_RESEARCH_URL</code> para a instância correta.
+          {health.error ? ` Detalhe: ${health.error}` : ""}
+        </p>
+      </div>
+    );
+  }
+
+  const broken = Object.entries(health.providerDetails ?? {}).filter(
+    ([, detail]) => detail && !detail.ok,
+  );
+  if (broken.length === 0) return null;
+
+  return (
+    <div className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm">
+      <p className="font-semibold text-amber-900">
+        Fontes pagas indisponíveis — os reports vão sair sem esses dados
+      </p>
+      <ul className="mt-1 space-y-1 leading-relaxed text-amber-800">
+        {broken.map(([name, detail]) => (
+          <li key={name}>
+            <span className="font-mono">{name}</span>:{" "}
+            {detail?.configured
+              ? (detail.error ?? "credencial rejeitada pelo provedor")
+              : "credencial não configurada"}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Overview({
   reports,
   health,
@@ -561,6 +625,8 @@ function Overview({
           Fazer pesquisa certeira
         </button>
       </div>
+
+      <BackendStatusBanner health={health} />
 
       <Thermometer pulse={pulse} />
 
@@ -673,7 +739,12 @@ function fallbackSourcePreviews(
 ): SourcePreview[] {
   const enabled = new Set(enabledSources);
   const previews: SourcePreview[] = [];
-  const { trend, volume, market, gap } = brief.opportunity;
+  const { market, gap } = brief.opportunity;
+  // A trend with no series and a keyword row with no volume are empty answers,
+  // not collected evidence — otherwise a failed provider renders as "Coletado".
+  const trend = brief.opportunity.trend?.timeline.length ? brief.opportunity.trend : null;
+  const volume =
+    brief.opportunity.volume?.searchVolume != null ? brief.opportunity.volume : null;
 
   if (enabled.has("google_trends")) {
     previews.push({
@@ -768,12 +839,11 @@ function fallbackSourcePreviews(
             },
             {
               label: "Competição",
+              // competition_index is already 0-100.
               value:
-                volume.competition == null
-                  ? "Sem dado"
-                  : `${Math.round(volume.competition * 100)}%`,
+                volume.competition == null ? "Sem dado" : `${Math.round(volume.competition)}%`,
             },
-            { label: "CPC", value: brl(volume.cpc) },
+            { label: "CPC", value: brlCents(volume.cpc) },
           ]
         : [],
       items: [],
