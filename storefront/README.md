@@ -223,20 +223,11 @@ Override per-route in `src/cache-config.ts`.
 
 Cloudflare Workers via Wrangler. Configuration is in `wrangler.jsonc` (entry: `src/worker-entry.ts`).
 
-CI/CD is automatic (see [`.github/workflows/README.md`](./.github/workflows/README.md)):
-
-- **Per-PR previews** — the Cloudflare **Workers Builds** GitHub App builds each PR and posts a sticky comment with the Commit/Branch preview URLs.
-- **`deploy.yml`** — on push to `main`, runs `wrangler deploy` with `BUILD_HASH` injected.
-
-Required repo secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
-
 To deploy manually from your machine:
 
 ```sh
 npm run deploy
 ```
-
-For Argo CD / Kubernetes deployment manifests see `deploy/`.
 
 ## Migration artifacts
 
