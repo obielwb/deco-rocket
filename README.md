@@ -80,12 +80,21 @@ Os pesos ficam explicitos em `api/lib/scoring.ts`, com breakdown por dimensao no
 
 ## Rodando
 
-Requisitos: [Bun](https://bun.sh).
+### Requisitos
+
+- [Bun](https://bun.sh) para a API MCP e o runner CLI
+- Node.js 20+ e `npm` para o storefront em `storefront/`
+- comando `deco` disponivel no shell se voce quiser abrir o tunnel do Studio com `bun start`
+
+Setup inicial:
 
 ```bash
 bun install
 cp .env.example .env
 ```
+
+Todas as integracoes externas sao opcionais. Mesmo sem chaves o projeto sobe e a pipeline roda, mas o
+report marca as fontes indisponiveis em `degraded`.
 
 ### Fluxo 1: rodar a pesquisa pelo terminal
 
@@ -94,31 +103,36 @@ bun run research "garrafa termica"
 bun run research "kit cafe especial" --top 3 --candidates 8
 ```
 
-Isso imprime o ranking no terminal e salva o report completo em `dist/report.json`.
+Esse fluxo imprime o ranking no terminal e salva o report completo em `dist/report.json`.
 
-### Fluxo 2: subir a API local usada pela interface Rocket
+### Fluxo 2: subir so a Research API local
 
 ```bash
 bun run dev:api
 ```
 
-Com a API no ar, os endpoints locais ficam disponiveis em `http://127.0.0.1:3001/api/research/*`.
-Os reports persistidos ficam em `dist/reports/` e os produtos lancados ficam em
-`dist/launched-products.json`.
+Com a API no ar:
 
-### Fluxo 3: rodar junto com o storefront demo
+- health check: `http://127.0.0.1:3001/api/research/health`
+- jobs, reports e launches: `http://127.0.0.1:3001/api/research/*`
+- reports persistidos: `dist/reports/`
+- jobs persistidos: `dist/jobs/`
+- produtos lancados: `dist/launched-products.json`
 
-O storefront agora vive em `storefront/` dentro deste mesmo repo.
+### Fluxo 3: rodar a experiencia Rocket ponta a ponta
 
-1. Neste repo, suba a API:
+O storefront vive em `storefront/` dentro deste repo e consome a API local acima.
+
+1. Na raiz deste repo, suba a API:
 
    ```bash
    bun run dev:api
    ```
 
-2. Na pasta `storefront/`, instale as dependencias e gere o build:
+2. Em outro terminal, entre em `storefront/`, instale as dependencias e gere o build:
 
    ```bash
+   cd storefront
    npm install
    npm run build
    ```
@@ -131,34 +145,47 @@ O storefront agora vive em `storefront/` dentro deste mesmo repo.
 
 4. Abra `http://127.0.0.1:4173/rocket`.
 
-Se `DECO_RESEARCH_URL` nao estiver definido no storefront, a UI usa `http://127.0.0.1:3001`
-como backend padrao.
+5. Entre com o login demo do Rocket:
 
-### Fluxo 4: app MCP e tunnel para o Studio
+   ```text
+   e-mail: lojista@rocket.local
+   senha:  rocket2026
+   ```
+
+Observacoes:
+
+- se `DECO_RESEARCH_URL` nao estiver definido no storefront, a UI usa `http://127.0.0.1:3001`
+  como backend padrao
+- a autenticacao do Rocket e local/demo; os sinais de catalogo e loja dependem das credenciais VTEX
+- para smoke test do fluxo inteiro, o caminho mais estavel hoje e `npm run build` + `vite preview`
+
+### Fluxo 4: rodar como MCP App no Studio
 
 ```bash
 bun run dev
 bun start
 ```
 
-`bun run dev` sobe a API local e recompila a UI. `bun start` abre o tunnel para conectar
-`https://<id>.deco.host/api/mcp` no Studio.
+`bun run dev` sobe a API local e recompila a UI. `bun start` chama `deco link -p 3001 -- bun run dev`
+e abre o tunnel para conectar `https://<id>.deco.host/api/mcp` no Studio.
 
 No Studio, instale o app, preencha as credenciais no _connection_ e chame a tool
 **`RESEARCH_RUN`** ou o prompt `research_product` para abrir o report na UI interativa.
 
-### Credenciais
+### Variaveis de ambiente
 
-Todas as credenciais sao opcionais. O projeto degrada com graca quando alguma fonte nao esta disponivel.
+O arquivo `.env.example` ja lista as variaveis esperadas pelo estado atual do projeto:
 
-| Provider | Variaveis | Usado por |
+| Area | Variaveis | Usado por |
 |---|---|---|
-| SerpApi | `SERPAPI_KEY` | Google Trends e Shopping |
-| DataForSEO | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` | volume de busca |
-| Anthropic | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | conceito e copy |
-| Imagem | `GEMINI_API_KEY` ou `OPENAI_API_KEY` | criativos com referencias visuais |
-| VTEX | `VTEX_ACCOUNT`, `VTEX_APP_KEY`, `VTEX_APP_TOKEN` | catalogo e whitespace |
-| Resend | `RESEND_API_KEY`, `RFQ_FROM_EMAIL`, `RFQ_WEBHOOK_SECRET` | RFQ Agent |
+| Trends e Shopping | `SERPAPI_KEY` | Google Trends e Google Shopping |
+| Keyword volume | `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` | volume, CPC e competicao |
+| LLM de texto | `LLM_PROVIDER`, `OPENAI_API_KEY`, `OPENAI_TEXT_MODEL`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | conceito, copy, resumo e parse de RFQ |
+| Imagens | `IMAGE_PROVIDER`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `OPENAI_IMAGE_MODEL` | criativos e imagem hero |
+| Assets locais | `RESEARCH_PUBLIC_URL` | URL publica usada pelos reports para carregar imagens persistidas |
+| Catalogo VTEX | `VTEX_ACCOUNT`, `VTEX_APP_KEY`, `VTEX_APP_TOKEN`, `VTEX_ENVIRONMENT` | whitespace e enriquecimento com catalogo |
+| RFQ Agent | `RESEND_API_KEY`, `RFQ_FROM_EMAIL`, `RFQ_FROM_NAME`, `RFQ_INBOUND_DOMAIN`, `RFQ_WEBHOOK_SECRET` | envio e correlacao de cotacoes |
+| Localizacao | `GEO`, `LANG` | defaults da pesquisa e da apresentacao |
 
 ---
 
