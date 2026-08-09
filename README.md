@@ -245,7 +245,3 @@ Persistencia atual:
 - TikTok Creative Center e Meta Ad Library no `SOCIAL_VIRAL_SCAN`
 - Deploy em Cloudflare Workers
 - Push automatico do produto aprovado para o catalogo VTEX
-
----
-
-Construido com Claude Code + Deco. Licenca MIT.
