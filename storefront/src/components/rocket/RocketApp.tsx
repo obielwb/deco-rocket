@@ -557,7 +557,7 @@ function BackendStatusBanner({
         <p className="mt-1 leading-relaxed text-amber-800">
           Nenhum report abaixo vem de uma consulta real: as fontes não foram acionadas. Suba a API
           (<code className="font-mono">bun run dev:api</code>) ou aponte{" "}
-          <code className="font-mono">DECO_RESEARCH_URL</code> para a instância correta.
+          <code className="font-mono">DECO_ROCKET_URL</code> para a instância correta.
           {health.error ? ` Detalhe: ${health.error}` : ""}
         </p>
       </div>

@@ -1,4 +1,4 @@
-# Por que o Deco Research importa — e por que é *da Deco*
+# Por que o Deco Rocket importa — e por que é *da Deco*
 
 > Relatório de mercado e tese estratégica. Argumenta por que "decidir qual produto lançar, com dados"
 > é a fronteira de maior alavancagem para a Deco — e por que a Deco é quem está melhor posicionada
@@ -13,7 +13,7 @@
 2. A Deco já **opera** as vitrines (150+ storefronts, VTEX-heavy) e vende **agentes que otimizam o que já
    existe** (SEO, Core Web Vitals, catálogo, busca). Ninguém no portfólio decide **o que deveria passar a
    existir**.
-3. O **Deco Research** abre exatamente essa fronteira — *product discovery* agêntico — e vai além do insight:
+3. O **Deco Rocket** abre exatamente essa fronteira — *product discovery* agêntico — e vai além do insight:
    fecha o loop até o **fornecedor** (RFQ Agent).
 4. É a ideia mais **alinhada ao modelo "cobrança por resultado"** da Deco: gera **receita nova mensurável**
    (um SKU novo que vende), o resultado mais fácil de atribuir a um agente.
@@ -31,7 +31,7 @@ e-commerce do mundo, e o mercado-natal da Deco.
 
 **A plataforma-âncora (VTEX).** A VTEX — de onde saíram os fundadores da Deco — processou **US$ 20,5 bi de
 GMV em 2025**, com **~3.100 lojas ativas** e **~2.200 clientes enterprise** em 44 países. É o coração do
-e-commerce enterprise latino-americano, e o terreno onde o Deco Research já se conecta (catálogo VTEX real).
+e-commerce enterprise latino-americano, e o terreno onde o Deco Rocket já se conecta (catálogo VTEX real).
 ([VTEX Q4 2025](https://www.tipranks.com/news/company-announcements/vtex-posts-record-q4-2025-profit-expands-enterprise-and-global-commerce-footprint/))
 
 **A onda agêntica.** O *agentic commerce* é a mudança estrutural do momento: projeções vão de **US$ 7,7 bi
@@ -93,7 +93,7 @@ Mapeando o portfólio agêntico atual contra o funil de valor da loja:
 
 Todos os agentes atuais **otimizam o que já existe**. **Nenhum decide o que deveria passar a existir.** Essa
 é a linha em branco na tabela — e é a de **maior alavancagem**, porque muda a receita no numerador, não só a
-taxa de conversão no denominador. O **Deco Research** preenche exatamente essa linha.
+taxa de conversão no denominador. O **Deco Rocket** preenche exatamente essa linha.
 
 ---
 
@@ -103,7 +103,7 @@ Seis razões pelas quais a Deco é quem está melhor posicionada para vencer ess
 
 **1) Alinhamento perfeito com "cobrança por resultado".** O modelo da Deco é cobrar pelo resultado gerado.
 Um SKU novo que vende é **o resultado mais limpo e atribuível que existe** — receita incremental que não
-existiria sem o agente. Otimização de CWV melhora uma métrica proxy; o Deco Research **cria linha de receita
+existiria sem o agente. Otimização de CWV melhora uma métrica proxy; o Deco Rocket **cria linha de receita
 nova**. É o caso de uso que melhor justifica o modelo de negócio da própria Deco.
 
 **2) Distribuição instalada.** 150+ storefronts, base VTEX, 36 agências e 2.400 devs são um **canal pronto**.
@@ -111,18 +111,18 @@ Um novo *agentic app* no Studio chega a essa base sem CAC de zero — é *upsell
 por resultado.
 
 **3) Moat de dados que ninguém genérico tem.** A Deco **já opera** o catálogo, a busca e a analytics das
-lojas. O Deco Research cruza tendência **externa** (Google Trends/Shopping, keywords, sinais virais) com o
+lojas. O Deco Rocket cruza tendência **externa** (Google Trends/Shopping, keywords, sinais virais) com o
 **catálogo real via VTEX** para achar *whitespace* — "o que está bombando e a loja ainda **não** tem". Uma
 ferramenta de trends de prateleira não conhece o catálogo do cliente; a Deco, sim. Esse cruzamento é o
 diferencial defensável.
 
-**4) Nativo do stack — dogfooding que vende a arquitetura.** O Deco Research é um **MCP App** construído no
+**4) Nativo do stack — dogfooding que vende a arquitetura.** O Deco Rocket é um **MCP App** construído no
 mesmo `@decocms/runtime`/Studio que a Deco comercializa. Ele **é** uma prova viva de que a arquitetura MCP da
 Deco resolve problemas reais de e-commerce de alto volume — vira peça de vitrine do ecossistema, não só um
 produto isolado.
 
 **5) Fecha o loop até a execução (RFQ Agent).** Ferramentas de tendência entregam um PDF de insight e param
-ali. O Deco Research vai de **tendência → conceito → imagem/copy → cotação real com fornecedor** (RFQ enviado
+ali. O Deco Rocket vai de **tendência → conceito → imagem/copy → cotação real com fornecedor** (RFQ enviado
 por e-mail, resposta parseada em cotação estruturada). Transformar insight em **ação executável** é o que
 separa "dashboard" de "agente que opera" — a própria tese da Deco.
 
@@ -140,12 +140,12 @@ Um dimensionamento conservador, de cima para baixo:
   a acertar mesmo **1–3% de receita incremental** via lançamentos melhores (dentro da faixa de **+50% de
   lucro bruto / −40% de perdas** relatada por adotantes de IA em varejo), o valor gerado por loja é material.
 - **Modelo de captura.** No modelo "cobrança por resultado", a Deco captura uma fração dessa receita
-  incremental — e o Deco Research é o agente cujo output (**SKU que vende**) é o mais fácil de medir e cobrar.
+  incremental — e o Deco Rocket é o agente cujo output (**SKU que vende**) é o mais fácil de medir e cobrar.
 - **Efeito portfólio.** Some-se o *cross-sell*: quem entra por "descobrir produto" tende a plugar os agentes
-  de catálogo, imagem, SEO e busca para **lançar** o produto descoberto — o Deco Research vira **porta de
+  de catálogo, imagem, SEO e busca para **lançar** o produto descoberto — o Deco Rocket vira **porta de
   entrada** para o resto do portfólio agêntico.
 
-> Em uma frase: o Deco Research não compete por um orçamento de "ferramenta de trends" — ele se paga em
+> Em uma frase: o Deco Rocket não compete por um orçamento de "ferramenta de trends" — ele se paga em
 > **pontos de margem de GMV** e **puxa o restante do ecossistema junto**.
 
 ---
@@ -155,7 +155,7 @@ Um dimensionamento conservador, de cima para baixo:
 Honestidade intelectual — o que precisa ser testado para a tese se sustentar:
 
 - **Qualidade do sinal → decisão.** O score precisa correlacionar com sell-through real. Mitigação:
-  *feedback loop* medindo performance dos SKUs lançados via Deco Research (a Deco já tem a analytics para isso).
+  *feedback loop* medindo performance dos SKUs lançados via Deco Rocket (a Deco já tem a analytics para isso).
 - **Conector de fornecedor.** O sourcing verdadeiramente global (1688/Alibaba, distribuidores sem API) ainda
   é o elo mais difícil; o RFQ Agent por e-mail resolve o caso BR imediato, e o MCP Mesh Bridge é o caminho
   para portais sem API.
@@ -172,7 +172,7 @@ O e-commerce está migrando de "otimizar a loja" para "**agentes operando decis�
 de negócio de maior alavancagem — **o que vender** — é justamente a que ainda não tem agente e concentra
 70–95% de risco de fracasso por falta de dado. A Deco tem os três ativos raros para vencer essa fronteira:
 **distribuição** (as vitrines), **dados** (o catálogo/analytics que opera) e **arquitetura** (MCP/Studio). O
-Deco Research transforma esses ativos em um agente que **gera receita nova mensurável** — o resultado que o
+Deco Rocket transforma esses ativos em um agente que **gera receita nova mensurável** — o resultado que o
 próprio modelo de negócio da Deco foi desenhado para cobrar — e ainda **fecha o loop até o fornecedor**.
 
 Não é "mais um app". É a peça que estende o portfólio agêntico da Deco do **"otimizar o que existe"** para o

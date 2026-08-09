@@ -26,7 +26,7 @@ import { generateConcept, generateCopy } from "./concept.ts";
 import { buildCreativePrompt, generateConceptImage } from "./creative.ts";
 import { sourceSupplier } from "./sourcing.ts";
 
-export const REPORT_RESOURCE_URI = "ui://deco-research/report";
+export const REPORT_RESOURCE_URI = "ui://deco-rocket/report";
 
 const DEFAULT_SOURCES: ResearchSource[] = [
 	"google_trends",

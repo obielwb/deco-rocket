@@ -1,7 +1,7 @@
 {
 	"scopeName": "deco",
-	"name": "deco-research",
-	"friendlyName": "Deco Research",
+	"name": "deco-rocket",
+	"friendlyName": "Deco Rocket",
 	"description": "Agentic product research: mines multi-source market trends, cross-references the store's VTEX catalog for whitespace, scores opportunities, and generates product concepts, supplier cost, hero images and copy — as a Product Opportunity Report.",
 	"icon": "",
 	"connection": {

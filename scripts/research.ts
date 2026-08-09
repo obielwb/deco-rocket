@@ -34,7 +34,7 @@ const env = {
 
 const line = "─".repeat(60);
 console.log(
-	`\n${line}\n🔎 Deco Research — "${seed}" (top ${topN}, ${maxCandidates} candidates)\n${line}`,
+	`\n${line}\n🔎 Deco Rocket — "${seed}" (top ${topN}, ${maxCandidates} candidates)\n${line}`,
 );
 
 const tool = researchRun(env);

@@ -485,7 +485,7 @@ export default function ReportPage() {
 		return (
 			<div className="flex flex-col items-center justify-center min-h-dvh gap-3 p-6 text-center">
 				<Sparkles className="w-8 h-8 text-primary" />
-				<h1 className="text-lg font-semibold">Deco Research</h1>
+				<h1 className="text-lg font-semibold">Deco Rocket</h1>
 				<p className="text-sm text-muted-foreground max-w-md">
 					Rode a ferramenta{" "}
 					<code className="px-1 bg-muted rounded">RESEARCH_RUN</code> com um
@@ -540,7 +540,7 @@ export default function ReportPage() {
 			</div>
 
 			<footer className="text-center text-xs text-muted-foreground pt-2">
-				Gerado por Deco Research · MCP App
+				Gerado por Deco Rocket · MCP App
 			</footer>
 		</div>
 	);

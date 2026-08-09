@@ -15,7 +15,7 @@ const DEFAULT_RESEARCH_URL = "http://127.0.0.1:3001";
 
 function researchUrl(): string {
   const configured =
-    typeof process !== "undefined" ? process.env.DECO_RESEARCH_URL?.trim() : undefined;
+    typeof process !== "undefined" ? process.env.DECO_ROCKET_URL?.trim() : undefined;
   return (configured || DEFAULT_RESEARCH_URL).replace(/\/$/, "");
 }
 

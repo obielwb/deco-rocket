@@ -1,8 +1,8 @@
-# Deco Research
+# Deco Rocket
 
 > Ache seu proximo produto com dados, nao com achismo.
 
-**Deco Research** e um sistema agentico de pesquisa de produto para e-commerce, construido como um
+**Deco Rocket** e um sistema agentico de pesquisa de produto para e-commerce, construido como um
 **MCP App nativo da [Deco](https://www.decocms.com/)**. A partir de um nicho, ele minera sinais de mercado,
 cruza com o catalogo real da loja para achar whitespace, pontua oportunidades com um score transparente e gera
 conceito, custo estimado, imagem hero e copy para o produto.
@@ -154,10 +154,22 @@ O storefront vive em `storefront/` dentro deste repo e consome a API local acima
 
 Observacoes:
 
-- se `DECO_RESEARCH_URL` nao estiver definido no storefront, a UI usa `http://127.0.0.1:3001`
+- se `DECO_ROCKET_URL` nao estiver definido no storefront, a UI usa `http://127.0.0.1:3001`
   como backend padrao
 - a autenticacao do Rocket e local/demo; os sinais de catalogo e loja dependem das credenciais VTEX
 - para smoke test do fluxo inteiro, o caminho mais estavel hoje e `npm run build` + `vite preview`
+
+### Radar automatico
+
+Com a API rodando (`bun run dev:api`), um agendador interno dispara `RESEARCH_RUN` uma vez por dia,
+as 06:00 (horario local do servidor), para os seeds definidos em `AUTO_RESEARCH_SEEDS` (default:
+`Accessories,Jackets & Outerwear`). Os reports gerados entram no mesmo storage dos manuais
+(`dist/reports/`) com `mode: "automatic"`.
+
+- desative com `AUTO_RESEARCH_ENABLED=false`
+- `GET /api/research/health` expoe `automation.enabled` e `automation.nextRunAt`
+- essas variaveis sao lidas direto de `process.env`: nao fazem parte do `configSchema` do app e
+  portanto nao sao configuraveis pela conexao do Studio
 
 ### Fluxo 4: rodar como MCP App no Studio
 
@@ -186,6 +198,7 @@ O arquivo `.env.example` ja lista as variaveis esperadas pelo estado atual do pr
 | Catalogo VTEX | `VTEX_ACCOUNT`, `VTEX_APP_KEY`, `VTEX_APP_TOKEN`, `VTEX_ENVIRONMENT` | whitespace e enriquecimento com catalogo |
 | RFQ Agent | `RESEND_API_KEY`, `RFQ_FROM_EMAIL`, `RFQ_FROM_NAME`, `RFQ_INBOUND_DOMAIN`, `RFQ_WEBHOOK_SECRET` | envio e correlacao de cotacoes |
 | Localizacao | `GEO`, `LANG` | defaults da pesquisa e da apresentacao |
+| Radar automatico | `AUTO_RESEARCH_ENABLED`, `AUTO_RESEARCH_SEEDS` | agenda a pesquisa diaria (server env, nao passa pela conexao do Studio) |
 
 ---
 
@@ -228,7 +241,7 @@ Persistencia atual:
 
 ## Roadmap
 
-- Persistencia duravel de runs, reports e RFQs
+- Persistencia duravel de RFQs (hoje em memoria; runs, reports e jobs ja persistem em `dist/`)
 - TikTok Creative Center e Meta Ad Library no `SOCIAL_VIRAL_SCAN`
 - Deploy em Cloudflare Workers
 - Push automatico do produto aprovado para o catalogo VTEX

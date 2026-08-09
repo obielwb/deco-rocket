@@ -117,9 +117,9 @@ Open `http://localhost:5173`.
 
 ### Rocket workspace with the local research API
 
-The Rocket flow depends on the `deco-research` API running in parallel.
+The Rocket flow depends on the `deco-rocket` API running in parallel.
 
-1. In `../deco-research`:
+1. In `../deco-rocket`:
 
 ```sh
 bun install
@@ -136,7 +136,7 @@ npx vite preview --host 127.0.0.1 --port 4173
 
 3. Open `http://127.0.0.1:4173/rocket`.
 
-If `DECO_RESEARCH_URL` is not set, the Rocket UI talks to `http://127.0.0.1:3001` by default.
+If `DECO_ROCKET_URL` is not set, the Rocket UI talks to `http://127.0.0.1:3001` by default.
 
 ## Scripts
 
